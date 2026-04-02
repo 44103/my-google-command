@@ -13,18 +13,6 @@ function listSpreadsheets(): { id: string; name: string; url: string; lastUpdate
   return result;
 }
 
-function resolveSpreadsheetId(params: { id?: string; url?: string }): string {
-  if (params.id) {
-    const match = params.id.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    return match ? match[1] : params.id;
-  }
-  if (params.url) {
-    const match = params.url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return match[1];
-  }
-  throw new Error("id or url is required");
-}
-
 function listSheets(id: string): { spreadsheetName: string; sheets: string[] } {
   const ss = SpreadsheetApp.openById(id);
   return {

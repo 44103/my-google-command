@@ -17,13 +17,19 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
         result = listSpreadsheets();
         break;
       case "spreadsheet":
-        result = listSheets(resolveSpreadsheetId(e.parameter));
+        result = listSheets(resolveId(e.parameter));
         break;
       case "sheet":
-        result = getSheetData(resolveSpreadsheetId(e.parameter), e.parameter.name);
+        result = getSheetData(resolveId(e.parameter), e.parameter.name);
+        break;
+      case "docs":
+        result = listDocs();
+        break;
+      case "doc":
+        result = getDocContent(resolveId(e.parameter));
         break;
       default:
-        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "auth"] };
+        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "auth"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
