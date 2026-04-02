@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.clasp.json
+yarn-error.log
+*.log
+.env
+.token

@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  nodejs:
+    build: .
+    command: sleep infinity
+    volumes:
+      - ..:/work
+      - .zsh_history:/root/.zsh_history
+    working_dir: /work

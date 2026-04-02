@@ -1,0 +1,33 @@
+function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextOutput | GoogleAppsScript.HTML.HtmlOutput {
+  const action = e.parameter.action;
+  try {
+    if (action === "auth") {
+      const token = ScriptApp.getOAuthToken();
+      return HtmlService.createHtmlOutput(`
+        <style>body{font-family:sans-serif;max-width:600px;margin:40px auto}pre{background:#f5f5f5;padding:12px;word-break:break-all;white-space:pre-wrap}button{padding:8px 16px;font-size:14px;cursor:pointer}</style>
+        <h2>Access Token</h2>
+        <pre id="t">${token}</pre>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('t').textContent).then(()=>{this.textContent='✓ Copied!';this.disabled=true})">📋 Copy Token</button>
+      `).setTitle("GAS Auth");
+    }
+
+    let result: unknown;
+    switch (action) {
+      case "spreadsheets":
+        result = listSpreadsheets();
+        break;
+      case "spreadsheet":
+        result = listSheets(resolveSpreadsheetId(e.parameter));
+        break;
+      case "sheet":
+        result = getSheetData(resolveSpreadsheetId(e.parameter), e.parameter.name);
+        break;
+      default:
+        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "auth"] };
+    }
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

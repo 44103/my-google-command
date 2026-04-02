@@ -1,0 +1,25 @@
+{
+  "name": "Node.js",
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "nodejs",
+  "remoteUser": "root",
+  "workspaceFolder": "/work",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "zsh"
+      },
+      "extensions": [
+        "sleistner.vscode-fileutils",
+        "shardulm94.trailing-spaces",
+        "christian-kohler.path-intellisense",
+        "fabiospampinato.vscode-todo-plus",
+        "mhutchie.git-graph",
+        "gamunu.vscode-yarn",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  },
+  "initializeCommand": "touch .devcontainer/.zsh_history"
+}

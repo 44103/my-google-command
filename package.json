@@ -1,0 +1,19 @@
+{
+  "name": "my-google-api",
+  "version": "1.0.0",
+  "description": "Google Apps Script project",
+  "scripts": {
+    "build": "./bin/build",
+    "push": "clasp push",
+    "apply": "yarn build && yarn push",
+    "setup": "clasp create --title my-google-api --type standalone --rootDir ./dist",
+    "deploy": "./bin/deploy",
+    "open": "clasp open",
+    "signin": "clasp login"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "typescript": "^5.3.3"
+  }
+}
