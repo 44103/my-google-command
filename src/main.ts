@@ -43,3 +43,28 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
     return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
   }
 }
+
+function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.TextOutput {
+  try {
+    const body = JSON.parse(e.postData.contents);
+    const action = body.action;
+    let result: unknown;
+    switch (action) {
+      case "doc:create":
+        result = createDoc(body.name, body.text, body.format);
+        break;
+      case "doc:append":
+        result = appendDoc(resolveId(body), body.text, body.format);
+        break;
+      case "doc:overwrite":
+        result = overwriteDoc(resolveId(body), body.text, body.format);
+        break;
+      default:
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite"] };
+    }
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

@@ -1,6 +1,6 @@
 # myg - My Google Workspace CLI
 
-Google Workspace（Spreadsheet, Docs, Gmail）のデータを CLI から取得するツールです。
+Google Workspace（Spreadsheet, Docs, Gmail）を CLI から操作するツールです。
 GAS（Google Apps Script）を自分専用のプロキシとして使い、`curl` 経由でアクセスします。
 
 ## ユーザー向け（使う人）
@@ -63,10 +63,18 @@ myg spreadsheet id=<ID>                             # シート一覧
 myg spreadsheet "id=<URL>"                          # URL でも OK
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
 
-# --- Docs ---
+# --- Docs（読み取り） ---
 myg docs                                            # 一覧取得
 myg doc id=<ID>                                     # ドキュメント内容取得
 myg doc "id=<URL>"                                  # URL でも OK
+
+# --- Docs（書き込み） ---
+myg doc create name="タイトル"                       # 新規作成
+echo "初期内容" | myg doc create name="メモ"          # 新規作成 + 本文
+echo "追加テキスト" | myg doc append id=<ID>          # 末尾に追記
+myg doc append id=<ID> < memo.txt                    # ファイルから追記
+myg doc overwrite id=<ID> < new.txt                  # 上書き
+cat README.md | myg doc overwrite id=<ID> format=markdown  # Markdown 装飾付き
 
 # --- Gmail ---
 myg mails                                           # 受信トレイ最新20件
@@ -76,6 +84,20 @@ myg mail id=<MESSAGE_ID>                            # メール本文取得
 ```
 
 Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.com/mail/answer/7190) がそのまま使えます。
+
+### Docs 書き込みについて
+
+書き込み系コマンド（`create` / `append` / `overwrite`）は本文を stdin から受け取ります。
+
+> ⚠️ `overwrite` は既存の内容をすべて置き換えます。実行前に内容を確認してから使うことを推奨します。
+
+| サブコマンド | 説明 | stdin |
+|-------------|------|-------|
+| `doc create name="TITLE"` | 新規ドキュメント作成 | あれば本文に設定 |
+| `doc append id=<ID>` | 末尾に追記 | 必須 |
+| `doc overwrite id=<ID>` | 全体を上書き | 必須 |
+
+`format=markdown` を付けると、Markdown を Google Docs のスタイル（見出し、リスト、コードブロック、テーブル、リンク等）に変換して書き込みます。
 
 ---
 
@@ -159,10 +181,11 @@ yarn open  # GAS エディタを開く
 │   ├── deploy       # デプロイスクリプト
 │   └── install      # ユーザー向けインストーラー
 ├── src/
-│   ├── main.ts      # doGet エントリポイント（ルーティング）
+│   ├── main.ts      # doGet/doPost エントリポイント（ルーティング）
 │   ├── spreadsheet.ts
-│   ├── docs.ts
+│   ├── docs.ts      # listDocs, getDocContent, createDoc, appendDoc, overwriteDoc
 │   ├── gmail.ts
+│   ├── markdown.ts  # Markdown → Google Docs 変換
 │   └── utils.ts     # 共通ヘルパー（resolveId）
 ├── .env.example
 └── package.json
