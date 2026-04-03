@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Google Apps Script project",
   "scripts": {
-    "build": "./bin/build",
+    "build": "./scripts/build",
     "push": "clasp push",
     "apply": "yarn build && yarn push",
     "setup": "clasp create --title my-google-api --type standalone --rootDir ./dist",
-    "deploy": "./bin/deploy",
+    "deploy": "./scripts/deploy",
     "open": "clasp open",
     "signin": "clasp login"
   },

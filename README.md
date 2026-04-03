@@ -30,7 +30,7 @@ cp .env.example .env
 3. インストール
 
 ```bash
-./bin/install
+./scripts/install
 ```
 
 `~/.local/bin` に `myg` コマンドがインストールされます。
@@ -175,8 +175,9 @@ yarn open  # GAS エディタを開く
 ### ディレクトリ構成
 
 ```
-├── bin/
-│   ├── myg          # CLI コマンド（bash + curl + jq）
+├── cli/
+│   └── myg          # CLI コマンド（bash + curl + jq）
+├── scripts/
 │   ├── build        # ビルドスクリプト
 │   ├── deploy       # デプロイスクリプト
 │   └── install      # ユーザー向けインストーラー

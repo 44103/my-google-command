@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_DIR="${1:-$HOME/.local/bin}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR/.."
+
+mkdir -p "$INSTALL_DIR"
+ln -sf "$PROJECT_DIR/cli/myg" "$INSTALL_DIR/myg"
+
+echo "Installed myg -> $INSTALL_DIR/myg"
+
+if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+  echo ""
+  echo "Add to your shell profile:"
+  echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+fi
