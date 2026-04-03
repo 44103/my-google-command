@@ -28,8 +28,14 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
       case "doc":
         result = getDocContent(resolveId(e.parameter));
         break;
+      case "mails":
+        result = listMails(e.parameter.q, e.parameter.max);
+        break;
+      case "mail":
+        result = getMail(e.parameter.id);
+        break;
       default:
-        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "auth"] };
+        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "auth"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
