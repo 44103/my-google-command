@@ -99,6 +99,22 @@ Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.
 
 `format=markdown` を付けると、Markdown を Google Docs のスタイル（見出し、リスト、コードブロック、テーブル、リンク等）に変換して書き込みます。
 
+### シンタックスハイライト
+
+Markdown のコードブロックに言語を指定すると、Google Docs 上でシンタックスハイライトが適用されます。
+
+対応言語：
+
+| 言語 | 指定方法 |
+|------|----------|
+| TypeScript / JavaScript | `ts`, `typescript`, `js`, `javascript`, `jsx`, `tsx` |
+| Python | `python`, `py` |
+| Go | `go`, `golang` |
+| Shell | `bash`, `sh`, `shell`, `zsh` |
+| Ruby | `ruby`, `rb` |
+
+コードブロックはダークテーマ（One Dark 風）で表示されます。コメント・文字列・キーワード・組み込み関数・数値を色分けします。言語指定がない場合はハイライトなしの等幅フォント表示になります。
+
 ---
 
 ## 実装者向け（開発・デプロイする人）
@@ -187,6 +203,8 @@ yarn open  # GAS エディタを開く
 │   ├── docs.ts      # listDocs, getDocContent, createDoc, appendDoc, overwriteDoc
 │   ├── gmail.ts
 │   ├── markdown.ts  # Markdown → Google Docs 変換
+│   ├── highlight.ts     # シンタックスハイライトエンジン（言語非依存）
+│   ├── highlight-lang.ts # 言語定義（TS/JS, Python, Go, Bash, Ruby）
 │   └── utils.ts     # 共通ヘルパー（resolveId）
 ├── .env.example
 └── package.json

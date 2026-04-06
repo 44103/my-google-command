@@ -7,6 +7,7 @@ function writeMarkdownToBody(body: GoogleAppsScript.Document.Body, markdown: str
 
     // Code block
     if (line.startsWith("```")) {
+      const lang = line.slice(3).trim();
       const codeLines: string[] = [];
       i++;
       while (i < lines.length && !lines[i].startsWith("```")) {
@@ -17,12 +18,13 @@ function writeMarkdownToBody(body: GoogleAppsScript.Document.Body, markdown: str
       if (codeLines.length > 0) {
         const table = body.appendTable([[codeLines.join("\n")]]);
         const cell = table.getRow(0).getCell(0);
-        cell.setBackgroundColor("#f5f5f5");
+        cell.setBackgroundColor("#282c34");
         const cellText = cell.editAsText();
         cellText.setFontFamily("Roboto Mono");
         cellText.setFontSize(9);
-        // Thin border
-        table.setBorderColor("#e0e0e0");
+        cellText.setForegroundColor("#ABB2BF");
+        highlightCode(cellText, lang);
+        table.setBorderColor("#3E4451");
         table.setBorderWidth(1);
       }
       continue;
