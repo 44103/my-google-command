@@ -59,8 +59,11 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
       case "doc:overwrite":
         result = overwriteDoc(resolveId(body), body.text, body.format);
         break;
+      case "sheet:write":
+        result = writeSheet(resolveId(body), body.name, body.range, body.text);
+        break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite"] };
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {

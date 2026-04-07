@@ -31,3 +31,14 @@ function getSheetData(id: string, sheetName: string): { spreadsheetName: string;
     data: sheet.getDataRange().getValues(),
   };
 }
+
+function writeSheet(id: string, sheetName: string, range: string, csv: string): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  if (!csv.trim()) throw new Error("No data provided");
+  const data = Utilities.parseCsv(csv);
+  const target = sheet.getRange(range).offset(0, 0, data.length, data[0].length);
+  target.setValues(data);
+  return { spreadsheetName: ss.getName(), sheet: sheetName, range: target.getA1Notation(), rows: data.length, cols: data[0].length };
+}
