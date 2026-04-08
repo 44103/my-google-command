@@ -1,6 +1,6 @@
 # myg - My Google Workspace CLI
 
-Google Workspace（Spreadsheet, Docs, Gmail, Tasks）を CLI から操作するツールです。
+Google Workspace（Spreadsheet, Docs, Gmail, Tasks, Calendar）を CLI から操作するツールです。
 GAS（Google Apps Script）を自分専用のプロキシとして使い、`curl` 経由でアクセスします。
 
 ## ユーザー向け（使う人）
@@ -90,6 +90,13 @@ myg tasks id=<TASKLIST_ID>                          # タスク一覧
 myg task create id=<TASKLIST_ID> title="タスク名"    # タスク作成
 myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10  # 期限付き
 myg task done id=<TASKLIST_ID> task=<TASK_ID>       # タスク完了
+
+# --- Calendar ---
+myg calendars                                       # カレンダー一覧
+myg events id=self                                  # 自分のカレンダー（今後7日間）
+myg events id=<CAL_ID> from=2026-04-08 to=2026-04-15  # 日付範囲指定
+myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00
+myg event create id=<CAL_ID> title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 location="会議室A"
 ```
 
 Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.com/mail/answer/7190) がそのまま使えます。
@@ -212,6 +219,7 @@ yarn open  # GAS エディタを開く
 │   ├── docs.ts      # listDocs, getDocContent, createDoc, appendDoc, overwriteDoc
 │   ├── gmail.ts
 │   ├── tasks.ts     # listTaskLists, listTasks, createTask, completeTask
+│   ├── calendar.ts  # listCalendars, listEvents, createEvent
 │   ├── markdown.ts  # Markdown → Google Docs 変換
 │   ├── highlight.ts     # シンタックスハイライトエンジン（言語非依存）
 │   ├── highlight-lang.ts # 言語定義（TS/JS, Python, Go, Bash, Ruby）

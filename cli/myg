@@ -40,6 +40,10 @@ Actions:
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD]  Create task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
+  calendars                     List calendars
+  events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
+    ※ id=self or omit id to use your default calendar
 
 Examples:
   myg auth
@@ -63,6 +67,9 @@ Examples:
   myg task create id=<TASKLIST_ID> title="Buy milk"
   myg task create id=<TASKLIST_ID> title="Report" due=2026-04-10
   myg task done id=<TASKLIST_ID> task=<TASK_ID>
+  myg calendars
+  myg events id=user@example.com from=2026-04-08 to=2026-04-15
+  myg event create id=user@example.com title="Meeting" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00
 EOF
   exit 0
 }
@@ -133,7 +140,42 @@ if [[ "$action" == "task" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$task_subaction" ]]; then
+# event subcommands (create) use POST
+event_subaction=""
+if [[ "$action" == "event" && $# -gt 0 ]]; then
+  case "$1" in
+    create) event_subaction="$1"; shift ;;
+  esac
+fi
+
+if [[ -n "$event_subaction" ]]; then
+  ev_id=""
+  ev_title=""
+  ev_start=""
+  ev_end=""
+  ev_location=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)       ev_id="${arg#id=}" ;;
+      title=*)    ev_title="${arg#title=}" ;;
+      start=*)    ev_start="${arg#start=}" ;;
+      end=*)      ev_end="${arg#end=}" ;;
+      location=*) ev_location="${arg#location=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg id "$ev_id" \
+    --arg title "$ev_title" \
+    --arg start "$ev_start" \
+    --arg end "$ev_end" \
+    --arg location "$ev_location" \
+    '{action: "event:create", id: $id, title: $title, start: $start, end: $end, location: $location}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$task_subaction" ]]; then
   t_id=""
   t_title=""
   t_due=""
