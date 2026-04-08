@@ -1,6 +1,6 @@
 # myg - My Google Workspace CLI
 
-Google Workspace（Spreadsheet, Docs, Gmail）を CLI から操作するツールです。
+Google Workspace（Spreadsheet, Docs, Gmail, Tasks）を CLI から操作するツールです。
 GAS（Google Apps Script）を自分専用のプロキシとして使い、`curl` 経由でアクセスします。
 
 ## ユーザー向け（使う人）
@@ -62,6 +62,8 @@ myg spreadsheets                                    # 一覧取得
 myg spreadsheet id=<ID>                             # シート一覧
 myg spreadsheet "id=<URL>"                          # URL でも OK
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
+echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
+cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
 
 # --- Docs（読み取り） ---
 myg docs                                            # 一覧取得
@@ -81,6 +83,13 @@ myg mails                                           # 受信トレイ最新20件
 myg mails "q=is:unread" max=5                       # 検索クエリで絞り込み
 myg mails "q=from:someone@example.com"              # 送信者で検索
 myg mail id=<MESSAGE_ID>                            # メール本文取得
+
+# --- Tasks ---
+myg tasklists                                       # タスクリスト一覧
+myg tasks id=<TASKLIST_ID>                          # タスク一覧
+myg task create id=<TASKLIST_ID> title="タスク名"    # タスク作成
+myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10  # 期限付き
+myg task done id=<TASKLIST_ID> task=<TASK_ID>       # タスク完了
 ```
 
 Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.com/mail/answer/7190) がそのまま使えます。
@@ -199,9 +208,10 @@ yarn open  # GAS エディタを開く
 │   └── install      # ユーザー向けインストーラー
 ├── src/
 │   ├── main.ts      # doGet/doPost エントリポイント（ルーティング）
-│   ├── spreadsheet.ts
+│   ├── spreadsheet.ts # listSpreadsheets, listSheets, getSheetData, writeSheet
 │   ├── docs.ts      # listDocs, getDocContent, createDoc, appendDoc, overwriteDoc
 │   ├── gmail.ts
+│   ├── tasks.ts     # listTaskLists, listTasks, createTask, completeTask
 │   ├── markdown.ts  # Markdown → Google Docs 変換
 │   ├── highlight.ts     # シンタックスハイライトエンジン（言語非依存）
 │   ├── highlight-lang.ts # 言語定義（TS/JS, Python, Go, Bash, Ruby）

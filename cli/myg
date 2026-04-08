@@ -36,6 +36,10 @@ Actions:
     ※ Add format=markdown to convert Markdown with styling
   mails [q=<QUERY>] [max=<N>]  List emails (default: inbox, 20)
   mail id=<MESSAGE_ID>          Get email content
+  tasklists                     List task lists
+  tasks id=<TASKLIST_ID>        List tasks in a task list
+  task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD]  Create task
+  task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
 
 Examples:
   myg auth
@@ -54,6 +58,11 @@ Examples:
   myg mails
   myg mails "q=from:someone@example.com" max=10
   myg mail id=18e1a2b3c4d5e6f7
+  myg tasklists
+  myg tasks id=<TASKLIST_ID>
+  myg task create id=<TASKLIST_ID> title="Buy milk"
+  myg task create id=<TASKLIST_ID> title="Report" due=2026-04-10
+  myg task done id=<TASKLIST_ID> task=<TASK_ID>
 EOF
   exit 0
 }
@@ -116,7 +125,40 @@ if [[ "$action" == "sheet" && $# -gt 0 && "$1" == "write" ]]; then
   sheet_write="1"; shift
 fi
 
-if [[ -n "$sheet_write" ]]; then
+# task subcommands (create/done) use POST
+task_subaction=""
+if [[ "$action" == "task" && $# -gt 0 ]]; then
+  case "$1" in
+    create|done) task_subaction="$1"; shift ;;
+  esac
+fi
+
+if [[ -n "$task_subaction" ]]; then
+  t_id=""
+  t_title=""
+  t_due=""
+  t_task=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)    t_id="${arg#id=}" ;;
+      title=*) t_title="${arg#title=}" ;;
+      due=*)   t_due="${arg#due=}" ;;
+      task=*)  t_task="${arg#task=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg sub "$task_subaction" \
+    --arg id "$t_id" \
+    --arg title "$t_title" \
+    --arg due "$t_due" \
+    --arg task "$t_task" \
+    '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_write" ]]; then
   sw_id=""
   sw_name=""
   sw_range="A1"

@@ -34,8 +34,14 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
       case "mail":
         result = getMail(e.parameter.id);
         break;
+      case "tasklists":
+        result = listTaskLists();
+        break;
+      case "tasks":
+        result = listTasks(e.parameter.id);
+        break;
       default:
-        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "auth"] };
+        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "tasklists", "tasks", "auth"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -62,8 +68,14 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
       case "sheet:write":
         result = writeSheet(resolveId(body), body.name, body.range, body.text);
         break;
+      case "task:create":
+        result = createTask(body.id, body.title, body.due);
+        break;
+      case "task:done":
+        result = completeTask(body.id, body.task);
+        break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write"] };
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "task:create", "task:done"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
