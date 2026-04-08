@@ -14,7 +14,7 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
     let result: unknown;
     switch (action) {
       case "spreadsheets":
-        result = listSpreadsheets();
+        result = listSpreadsheets(parseInt(e.parameter.max || "20"));
         break;
       case "spreadsheet":
         result = listSheets(resolveId(e.parameter));
@@ -23,7 +23,7 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
         result = getSheetData(resolveId(e.parameter), e.parameter.name);
         break;
       case "docs":
-        result = listDocs();
+        result = listDocs(parseInt(e.parameter.max || "20"));
         break;
       case "doc":
         result = getDocContent(resolveId(e.parameter));

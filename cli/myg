@@ -24,11 +24,11 @@ Usage: myg <action> [key=value ...]
 
 Actions:
   auth                          Authenticate via browser and save token
-  spreadsheets                  List all spreadsheets
+  spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
-  docs                          List all documents
+  docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
   doc append id=<ID or URL>     Append text from stdin

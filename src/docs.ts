@@ -1,7 +1,7 @@
-function listDocs(): { id: string; name: string; url: string; lastUpdated: string }[] {
+function listDocs(max = 20): { id: string; name: string; url: string; lastUpdated: string }[] {
   const files = DriveApp.getFilesByType(MimeType.GOOGLE_DOCS);
   const result: { id: string; name: string; url: string; lastUpdated: string }[] = [];
-  while (files.hasNext()) {
+  while (files.hasNext() && result.length < max) {
     const f = files.next();
     result.push({
       id: f.getId(),
