@@ -78,16 +78,22 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
         result = createSheet(resolveId(body), body.name);
         break;
       case "task:create":
-        result = createTask(body.id, body.title, body.due);
+        result = createTask(body.id, body.title, body.due, body.notes);
+        break;
+      case "task:update":
+        result = updateTask(body.id, body.task, { title: body.title, due: body.due, notes: body.notes });
         break;
       case "task:done":
         result = completeTask(body.id, body.task);
+        break;
+      case "task:delete":
+        result = deleteTask(body.id, body.task);
         break;
       case "event:create":
         result = createEvent(body.id, body.title, body.start, body.end, body.location);
         break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "task:create", "task:done", "event:create"] };
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {

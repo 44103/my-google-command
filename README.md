@@ -90,6 +90,10 @@ myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧
 myg task create id=<TASKLIST_ID> title="タスク名"    # タスク作成
 myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10  # 期限付き
+myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10 notes="詳細メモ"  # 説明付き
+myg task update id=<TASKLIST_ID> task=<TASK_ID> title="新しいタイトル"  # タスク更新
+myg task update id=<TASKLIST_ID> task=<TASK_ID> notes="説明を追加"     # 説明を追加
+myg task delete id=<TASKLIST_ID> task=<TASK_ID>     # タスク削除
 myg task done id=<TASKLIST_ID> task=<TASK_ID>       # タスク完了
 
 # --- Calendar ---
