@@ -42,3 +42,10 @@ function writeSheet(id: string, sheetName: string, range: string, csv: string): 
   target.setValues(data);
   return { spreadsheetName: ss.getName(), sheet: sheetName, range: target.getA1Notation(), rows: data.length, cols: data[0].length };
 }
+
+function createSheet(id: string, sheetName: string): { spreadsheetName: string; sheet: string } {
+  const ss = SpreadsheetApp.openById(id);
+  if (ss.getSheetByName(sheetName)) throw new Error(`Sheet "${sheetName}" already exists`);
+  ss.insertSheet(sheetName);
+  return { spreadsheetName: ss.getName(), sheet: sheetName };
+}

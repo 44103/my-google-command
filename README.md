@@ -62,6 +62,7 @@ myg spreadsheets                                    # 一覧取得
 myg spreadsheet id=<ID>                             # シート一覧
 myg spreadsheet "id=<URL>"                          # URL でも OK
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
+myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
 cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
 

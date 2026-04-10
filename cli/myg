@@ -27,6 +27,7 @@ Actions:
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
+  sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
@@ -50,6 +51,7 @@ Examples:
   myg spreadsheets
   myg spreadsheet id=1abc...xyz
   myg sheet id=1abc...xyz "name=Sheet1"
+  myg sheet create id=1abc...xyz "name=NewSheet"
   echo "A,B,C" | myg sheet write id=1abc...xyz "name=Sheet1" range=A1
   cat data.csv | myg sheet write id=1abc...xyz "name=Sheet1" range=B2
   myg docs
@@ -128,8 +130,12 @@ fi
 
 # sheet write subcommand uses POST + stdin (TSV)
 sheet_write=""
-if [[ "$action" == "sheet" && $# -gt 0 && "$1" == "write" ]]; then
-  sheet_write="1"; shift
+sheet_create=""
+if [[ "$action" == "sheet" && $# -gt 0 ]]; then
+  case "$1" in
+    write)  sheet_write="1"; shift ;;
+    create) sheet_create="1"; shift ;;
+  esac
 fi
 
 # task subcommands (create/done) use POST
@@ -196,6 +202,24 @@ elif [[ -n "$task_subaction" ]]; then
     --arg due "$t_due" \
     --arg task "$t_task" \
     '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_create" ]]; then
+  sc_id=""
+  sc_name=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sc_id="${arg#id=}" ;;
+      name=*) sc_name="${arg#name=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg id "$sc_id" \
+    --arg name "$sc_name" \
+    '{action: "sheet:create", id: $id, name: $name}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

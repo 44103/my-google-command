@@ -74,6 +74,9 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
       case "sheet:write":
         result = writeSheet(resolveId(body), body.name, body.range, body.text);
         break;
+      case "sheet:create":
+        result = createSheet(resolveId(body), body.name);
+        break;
       case "task:create":
         result = createTask(body.id, body.title, body.due);
         break;
