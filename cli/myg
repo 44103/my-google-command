@@ -37,6 +37,9 @@ Actions:
     ※ Add format=markdown to convert Markdown with styling
   mails [q=<QUERY>] [max=<N>]  List emails (default: inbox, 20)
   mail id=<MESSAGE_ID>          Get email content
+  mail draft to=<ADDR> subject="..." (stdin for body)  Create draft
+  mail draft id=<DRAFT_ID> to=<ADDR> subject="..." (stdin for body)  Update draft
+  mail draft delete id=<DRAFT_ID>  Delete draft
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -66,6 +69,9 @@ Examples:
   myg mails
   myg mails "q=from:someone@example.com" max=10
   myg mail id=18e1a2b3c4d5e6f7
+  echo "本文" | myg mail draft to=someone@example.com subject="件名"
+  echo "本文" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="件名"
+  myg mail draft delete id=<DRAFT_ID>
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"
@@ -134,6 +140,18 @@ if [[ "$action" == "doc" && $# -gt 0 ]]; then
   esac
 fi
 
+# mail subcommands (draft) use POST
+mail_subaction=""
+if [[ "$action" == "mail" && $# -gt 0 ]]; then
+  case "$1" in
+    draft) mail_subaction="$1"; shift
+           if [[ $# -gt 0 && "$1" == "delete" ]]; then
+             mail_subaction="draft:delete"; shift
+           fi ;;
+
+  esac
+fi
+
 # sheet write subcommand uses POST + stdin (TSV)
 sheet_write=""
 sheet_create=""
@@ -183,6 +201,46 @@ if [[ -n "$event_subaction" ]]; then
     --arg end "$ev_end" \
     --arg location "$ev_location" \
     '{action: "event:create", id: $id, title: $title, start: $start, end: $end, location: $location}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ "$mail_subaction" == "draft:delete" ]]; then
+  m_id=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*) m_id="${arg#id=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n --arg id "$m_id" '{action: "mail:draft:delete", id: $id}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$mail_subaction" ]]; then
+  m_to=""
+  m_subject=""
+  m_id=""
+  for arg in "$@"; do
+    case "$arg" in
+      to=*)      m_to="${arg#to=}" ;;
+      subject=*) m_subject="${arg#subject=}" ;;
+      id=*)      m_id="${arg#id=}" ;;
+    esac
+  done
+
+  m_body=""
+  if [[ ! -t 0 ]]; then
+    m_body=$(cat)
+  fi
+
+  json_body=$(jq -n \
+    --arg id "$m_id" \
+    --arg to "$m_to" \
+    --arg subject "$m_subject" \
+    --arg text "$m_body" \
+    '{action: "mail:draft", id: $id, to: $to, subject: $subject, text: $text}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

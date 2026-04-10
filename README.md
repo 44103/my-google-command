@@ -84,6 +84,9 @@ myg mails                                           # 受信トレイ最新20件
 myg mails "q=is:unread" max=5                       # 検索クエリで絞り込み
 myg mails "q=from:someone@example.com"              # 送信者で検索
 myg mail id=<MESSAGE_ID>                            # メール本文取得
+echo "本文" | myg mail draft to=someone@example.com subject="件名"  # 下書き作成
+echo "本文" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="件名"  # 下書き更新
+myg mail draft delete id=<DRAFT_ID>                                              # 下書き削除
 
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧

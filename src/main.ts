@@ -92,8 +92,18 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
       case "event:create":
         result = createEvent(body.id, body.title, body.start, body.end, body.location);
         break;
+      case "mail:draft":
+        if (body.id) {
+          result = updateDraft(body.id, body.to, body.subject, body.text);
+        } else {
+          result = createDraft(body.to, body.subject, body.text);
+        }
+        break;
+      case "mail:draft:delete":
+        result = deleteDraft(body.id);
+        break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create"] };
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create", "mail:draft"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
