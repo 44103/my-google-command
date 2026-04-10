@@ -6,7 +6,17 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 
 source "$PROJECT_DIR/.env" 2>/dev/null || true
 
+rm -rf "$PROJECT_DIR/dist"
 tsc --project "$PROJECT_DIR"
+
+# Flatten subdirectories in dist/ (clasp requires flat structure)
+# e.g. dist/docs/highlight.js -> dist/docs-highlight.js
+find "$PROJECT_DIR/dist" -mindepth 2 -type f | while read -r file; do
+  rel="${file#$PROJECT_DIR/dist/}"
+  flat=$(echo "$rel" | sed 's|/|-|g')
+  mv "$file" "$PROJECT_DIR/dist/$flat"
+done
+find "$PROJECT_DIR/dist" -mindepth 1 -type d -empty -delete
 
 node -e "
   const f = require('$PROJECT_DIR/src/appsscript.json');
