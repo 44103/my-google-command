@@ -49,12 +49,20 @@ function appendDoc(id: string, text: string, format?: string): { name: string; b
 
 function overwriteDoc(id: string, text: string, format?: string): { name: string; body: string } {
   const doc = DocumentApp.openById(id);
-  doc.getBody().clear();
+  const body = doc.getBody();
+
+  // Append new content first, then remove old elements
+  const oldCount = body.getNumChildren();
   if (format === "markdown") {
-    writeMarkdownToBody(doc.getBody(), text);
+    writeMarkdownToBody(body, text);
   } else {
-    doc.getBody().appendParagraph(text);
+    body.appendParagraph(text);
   }
+  // Remove old elements (iterate backwards to keep indices stable)
+  for (let i = oldCount - 1; i >= 0; i--) {
+    body.removeChild(body.getChild(i));
+  }
+
   doc.saveAndClose();
   const updated = DocumentApp.openById(id);
   return { name: updated.getName(), body: updated.getBody().getText() };
