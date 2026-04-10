@@ -37,3 +37,44 @@ function deleteDraft(draftId: string): { deleted: true; draft: string } {
   GmailApp.getDraft(draftId).deleteDraft();
   return { deleted: true, draft: draftId };
 }
+
+function labelMails(query: string, labelName: string, skipInbox?: boolean): { labeled: number; label: string; query: string } {
+  const label = GmailApp.getUserLabelByName(labelName) || GmailApp.createLabel(labelName);
+  const threads = GmailApp.search(query, 0, 100);
+  threads.forEach(t => {
+    t.addLabel(label);
+    if (skipInbox) t.moveToArchive();
+  });
+  return { labeled: threads.length, label: labelName, query };
+}
+
+function listFilters(): object[] {
+  const res = Gmail.Users!.Settings!.Filters!.list("me");
+  return (res.filter || []).map((f: GoogleAppsScript.Gmail.Schema.Filter) => ({
+    id: f.id!,
+    criteria: f.criteria || {},
+    action: f.action || {},
+  }));
+}
+
+function createFilter(query: string, labelName: string, skipInbox?: boolean): { id: string; query: string; label: string } {
+  const labels = Gmail.Users!.Labels!.list("me").labels || [];
+  let label = labels.find((l: GoogleAppsScript.Gmail.Schema.Label) => l.name === labelName);
+  if (!label) {
+    label = Gmail.Users!.Labels!.create({ name: labelName, labelListVisibility: "labelShow", messageListVisibility: "show" }, "me");
+  }
+
+  const action: GoogleAppsScript.Gmail.Schema.FilterAction = { addLabelIds: [label.id!] };
+  if (skipInbox) action.removeLabelIds = ["INBOX"];
+
+  const filter = Gmail.Users!.Settings!.Filters!.create({
+    criteria: { query },
+    action,
+  }, "me");
+  return { id: filter.id!, query, label: labelName };
+}
+
+function deleteFilter(filterId: string): { deleted: true; filter: string } {
+  Gmail.Users!.Settings!.Filters!.remove("me", filterId);
+  return { deleted: true, filter: filterId };
+}

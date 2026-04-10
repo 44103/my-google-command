@@ -88,6 +88,11 @@ echo "本文" | myg mail draft to=someone@example.com subject="件名"  # 下書
 echo "本文" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="件名"  # 下書き更新
 myg mail draft delete id=<DRAFT_ID>                                              # 下書き削除
 
+# --- Gmail フィルタ ---
+myg mail filters                                         # フィルタ一覧
+myg mail filter create q="from:someone@example.com" label="Work"  # フィルタ作成
+myg mail filter delete id=<FILTER_ID>                    # フィルタ削除
+
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧

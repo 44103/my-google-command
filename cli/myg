@@ -40,6 +40,9 @@ Actions:
   mail draft to=<ADDR> subject="..." (stdin for body)  Create draft
   mail draft id=<DRAFT_ID> to=<ADDR> subject="..." (stdin for body)  Update draft
   mail draft delete id=<DRAFT_ID>  Delete draft
+  mail filters                    List Gmail filters
+  mail filter create q="<QUERY>" label="<LABEL>"  Create filter
+  mail filter delete id=<FILTER_ID>  Delete filter
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -72,6 +75,9 @@ Examples:
   echo "本文" | myg mail draft to=someone@example.com subject="件名"
   echo "本文" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="件名"
   myg mail draft delete id=<DRAFT_ID>
+  myg mail filters
+  myg mail filter create q="from:someone@example.com" label="Work"
+  myg mail filter delete id=<FILTER_ID>
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"
@@ -148,6 +154,12 @@ if [[ "$action" == "mail" && $# -gt 0 ]]; then
            if [[ $# -gt 0 && "$1" == "delete" ]]; then
              mail_subaction="draft:delete"; shift
            fi ;;
+    filters) mail_subaction="filters" ; shift ;;
+    filter)  shift
+             case "$1" in
+               create|delete) mail_subaction="filter:$1"; shift ;;
+             esac ;;
+    label)   mail_subaction="label"; shift ;;
 
   esac
 fi
@@ -178,7 +190,56 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$event_subaction" ]]; then
+if [[ "$mail_subaction" == "filters" ]]; then
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    "${BASE}?action=mail:filters")
+elif [[ "$mail_subaction" == "label" ]]; then
+  ml_query=""
+  ml_label=""
+  ml_skip_inbox=""
+  for arg in "$@"; do
+    case "$arg" in
+      q=*)       ml_query="${arg#q=}" ;;
+      label=*)   ml_label="${arg#label=}" ;;
+      skipInbox) ml_skip_inbox="true" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg query "$ml_query" \
+    --arg label "$ml_label" \
+    --arg skipInbox "$ml_skip_inbox" \
+    '{action: "mail:label", query: $query, label: $label, skipInbox: $skipInbox}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:delete" ]]; then
+  f_id=""
+  f_query=""
+  f_label=""
+  f_skip_inbox=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)        f_id="${arg#id=}" ;;
+      q=*)         f_query="${arg#q=}" ;;
+      label=*)     f_label="${arg#label=}" ;;
+      skipInbox)   f_skip_inbox="true" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg sub "$mail_subaction" \
+    --arg id "$f_id" \
+    --arg query "$f_query" \
+    --arg label "$f_label" \
+    --arg skipInbox "$f_skip_inbox" \
+    '{action: ("mail:" + $sub), id: $id, query: $query, label: $label, skipInbox: $skipInbox}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$event_subaction" ]]; then
   ev_id=""
   ev_title=""
   ev_start=""

@@ -46,8 +46,11 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
       case "events":
         result = listEvents(e.parameter.id, e.parameter.from, e.parameter.to);
         break;
+      case "mail:filters":
+        result = listFilters();
+        break;
       default:
-        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "tasklists", "tasks", "calendars", "events", "auth"] };
+        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "mail:filters", "tasklists", "tasks", "calendars", "events", "auth"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -102,8 +105,17 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
       case "mail:draft:delete":
         result = deleteDraft(body.id);
         break;
+      case "mail:label":
+        result = labelMails(body.query, body.label, body.skipInbox === "true" || body.skipInbox === true);
+        break;
+      case "mail:filter:create":
+        result = createFilter(body.query, body.label, body.skipInbox === "true" || body.skipInbox === true);
+        break;
+      case "mail:filter:delete":
+        result = deleteFilter(body.id);
+        break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create", "mail:draft"] };
+        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create", "mail:draft", "mail:draft:delete", "mail:filter:create", "mail:filter:delete"] };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
