@@ -93,6 +93,14 @@ myg mail filters                                         # フィルタ一覧
 myg mail filter create q="from:someone@example.com" label="Work"  # フィルタ作成
 myg mail filter delete id=<FILTER_ID>                    # フィルタ削除
 
+# --- Drive ---
+myg files                                           # ルートフォルダ一覧（デフォルト20件）
+myg files id=<FOLDER_ID> max=10                     # フォルダ内一覧
+myg file id=<FILE_ID>                               # ファイルダウンロード（テキスト）
+echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"  # テキストアップロード
+myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png  # ファイル指定アップロード
+myg file move id=<FILE_ID> folder=<FOLDER_ID>       # ファイル移動
+
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧

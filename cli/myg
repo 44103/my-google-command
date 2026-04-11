@@ -43,6 +43,10 @@ Actions:
   mail filters                    List Gmail filters
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
+  files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
+  file id=<FILE_ID>               Download file content
+  file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
+  file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -78,6 +82,12 @@ Examples:
   myg mail filters
   myg mail filter create q="from:someone@example.com" label="Work"
   myg mail filter delete id=<FILTER_ID>
+  myg files
+  myg files id=<FOLDER_ID> max=10
+  myg file id=<FILE_ID>
+  echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"
+  myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png
+  myg file move id=<FILE_ID> folder=<FOLDER_ID>
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"
@@ -182,6 +192,14 @@ if [[ "$action" == "task" && $# -gt 0 ]]; then
   esac
 fi
 
+# file subcommands (upload/move) use POST
+file_subaction=""
+if [[ "$action" == "file" && $# -gt 0 ]]; then
+  case "$1" in
+    upload|move) file_subaction="$1"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -190,7 +208,60 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ "$mail_subaction" == "filters" ]]; then
+if [[ -n "$file_subaction" ]]; then
+  fu_id=""
+  fu_folder=""
+  fu_name=""
+  fu_file=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)     fu_id="${arg#id=}" ;;
+      folder=*) fu_folder="${arg#folder=}" ;;
+      name=*)   fu_name="${arg#name=}" ;;
+      file=*)   fu_file="${arg#file=}" ;;
+    esac
+  done
+
+  if [[ "$file_subaction" == "upload" ]]; then
+    if [[ -n "$fu_file" ]]; then
+      fu_tmp=$(mktemp)
+      base64 -w0 "$fu_file" > "$fu_tmp"
+      fu_b64="true"
+      fu_mime=$(file -b --mime-type "$fu_file")
+    elif [[ ! -t 0 ]]; then
+      fu_tmp=$(mktemp)
+      cat > "$fu_tmp"
+      fu_b64=""
+      fu_mime=""
+    else
+      echo "Error: file= parameter or stdin required" >&2; exit 1
+    fi
+
+    fu_json=$(mktemp)
+    jq -n \
+      --rawfile data "$fu_tmp" \
+      --arg folder "$fu_folder" \
+      --arg name "$fu_name" \
+      --arg isBase64 "$fu_b64" \
+      --arg mimeType "$fu_mime" \
+      '{action: "file:upload", folder: $folder, name: $name, data: $data, isBase64: $isBase64, mimeType: $mimeType}' > "$fu_json"
+    rm -f "$fu_tmp"
+
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d @"$fu_json" "$BASE")
+    rm -f "$fu_json"
+  else
+    json_body=$(jq -n \
+      --arg id "$fu_id" \
+      --arg folder "$fu_folder" \
+      '{action: "file:move", id: $id, folder: $folder}')
+
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
+  fi
+elif [[ "$mail_subaction" == "filters" ]]; then
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     "${BASE}?action=mail:filters")
 elif [[ "$mail_subaction" == "label" ]]; then

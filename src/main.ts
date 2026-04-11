@@ -1,14 +1,18 @@
-function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextOutput | GoogleAppsScript.HTML.HtmlOutput {
+function doGet(
+  e: GoogleAppsScript.Events.DoGet,
+): GoogleAppsScript.Content.TextOutput | GoogleAppsScript.HTML.HtmlOutput {
   const action = e.parameter.action;
   try {
     if (action === "auth") {
       const token = ScriptApp.getOAuthToken();
-      return HtmlService.createHtmlOutput(`
+      return HtmlService.createHtmlOutput(
+        `
         <style>body{font-family:sans-serif;max-width:600px;margin:40px auto}pre{background:#f5f5f5;padding:12px;word-break:break-all;white-space:pre-wrap}button{padding:8px 16px;font-size:14px;cursor:pointer}</style>
         <h2>Access Token</h2>
         <pre id="t">${token}</pre>
         <button onclick="navigator.clipboard.writeText(document.getElementById('t').textContent).then(()=>{this.textContent='✓ Copied!';this.disabled=true})">📋 Copy Token</button>
-      `).setTitle("GAS Auth");
+      `,
+      ).setTitle("GAS Auth");
     }
 
     let result: unknown;
@@ -49,17 +53,48 @@ function doGet(e: GoogleAppsScript.Events.DoGet): GoogleAppsScript.Content.TextO
       case "mail:filters":
         result = listFilters();
         break;
+      case "files":
+        result = listDriveFiles(e.parameter.id, e.parameter.max);
+        break;
+      case "file":
+        result = downloadFile(e.parameter.id);
+        break;
       default:
-        result = { error: "Unknown action", available: ["spreadsheets", "spreadsheet", "sheet", "docs", "doc", "mails", "mail", "mail:filters", "tasklists", "tasks", "calendars", "events", "auth"] };
+        result = {
+          error: "Unknown action",
+          available: [
+            "spreadsheets",
+            "spreadsheet",
+            "sheet",
+            "docs",
+            "doc",
+            "mails",
+            "mail",
+            "mail:filters",
+            "files",
+            "file",
+            "tasklists",
+            "tasks",
+            "calendars",
+            "events",
+            "auth",
+          ],
+        };
     }
-    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(
+      JSON.stringify({ error: msg }),
+    ).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.TextOutput {
+function doPost(
+  e: GoogleAppsScript.Events.DoPost,
+): GoogleAppsScript.Content.TextOutput {
   try {
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
@@ -84,7 +119,11 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
         result = createTask(body.id, body.title, body.due, body.notes);
         break;
       case "task:update":
-        result = updateTask(body.id, body.task, { title: body.title, due: body.due, notes: body.notes });
+        result = updateTask(body.id, body.task, {
+          title: body.title,
+          due: body.due,
+          notes: body.notes,
+        });
         break;
       case "task:done":
         result = completeTask(body.id, body.task);
@@ -93,7 +132,13 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
         result = deleteTask(body.id, body.task);
         break;
       case "event:create":
-        result = createEvent(body.id, body.title, body.start, body.end, body.location);
+        result = createEvent(
+          body.id,
+          body.title,
+          body.start,
+          body.end,
+          body.location,
+        );
         break;
       case "mail:draft":
         if (body.id) {
@@ -106,20 +151,65 @@ function doPost(e: GoogleAppsScript.Events.DoPost): GoogleAppsScript.Content.Tex
         result = deleteDraft(body.id);
         break;
       case "mail:label":
-        result = labelMails(body.query, body.label, body.skipInbox === "true" || body.skipInbox === true);
+        result = labelMails(
+          body.query,
+          body.label,
+          body.skipInbox === "true" || body.skipInbox === true,
+        );
         break;
       case "mail:filter:create":
-        result = createFilter(body.query, body.label, body.skipInbox === "true" || body.skipInbox === true);
+        result = createFilter(
+          body.query,
+          body.label,
+          body.skipInbox === "true" || body.skipInbox === true,
+        );
         break;
       case "mail:filter:delete":
         result = deleteFilter(body.id);
         break;
+      case "file:upload":
+        result = uploadFile(
+          body.folder,
+          body.name,
+          body.data,
+          body.isBase64 === "true" || body.isBase64 === true,
+          body.mimeType,
+        );
+        break;
+      case "file:move":
+        result = moveFile(body.id, body.folder);
+        break;
       default:
-        result = { error: "Unknown action", available: ["doc:create", "doc:append", "doc:overwrite", "sheet:write", "sheet:create", "task:create", "task:update", "task:done", "task:delete", "event:create", "mail:draft", "mail:draft:delete", "mail:filter:create", "mail:filter:delete"] };
+        result = {
+          error: "Unknown action",
+          available: [
+            "doc:create",
+            "doc:append",
+            "doc:overwrite",
+            "sheet:write",
+            "sheet:create",
+            "task:create",
+            "task:update",
+            "task:done",
+            "task:delete",
+            "event:create",
+            "mail:draft",
+            "mail:draft:delete",
+            "mail:label",
+            "mail:filter:create",
+            "mail:filter:delete",
+            "file:upload",
+            "file:move",
+          ],
+        };
     }
-    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return ContentService.createTextOutput(JSON.stringify({ error: msg })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(
+      JSON.stringify({ error: msg }),
+    ).setMimeType(ContentService.MimeType.JSON);
   }
 }
