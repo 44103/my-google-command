@@ -73,6 +73,8 @@ Actions:
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
   event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
     ※ id=self or omit id to use your default calendar
+  event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
+    Find free time slots across multiple people (default: today, 30min)
 
 Examples:
   myg auth
@@ -253,7 +255,7 @@ fi
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
   case "$1" in
-    create) event_subaction="$1"; shift ;;
+    create|freebusy) event_subaction="$1"; shift ;;
   esac
 fi
 
@@ -453,6 +455,23 @@ elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:del
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$json_body" "$BASE")
+elif [[ "$event_subaction" == "freebusy" ]]; then
+  ev_emails=""
+  ev_from=""
+  ev_to=""
+  ev_duration=""
+  for arg in "$@"; do
+    case "$arg" in
+      emails=*)   ev_emails="${arg#emails=}" ;;
+      from=*)     ev_from="${arg#from=}" ;;
+      to=*)       ev_to="${arg#to=}" ;;
+      duration=*) ev_duration="${arg#duration=}" ;;
+    esac
+  done
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=event:freebusy" --data-urlencode "emails=${ev_emails}" \
+    --data-urlencode "from=${ev_from}" --data-urlencode "to=${ev_to}" \
+    --data-urlencode "duration=${ev_duration}" "$BASE")
 elif [[ -n "$event_subaction" ]]; then
   ev_id=""
   ev_title=""

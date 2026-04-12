@@ -16,6 +16,11 @@
         "userSymbol": "People",
         "version": "v1",
         "serviceId": "peopleapi"
+      },
+      {
+        "userSymbol": "Calendar",
+        "version": "v3",
+        "serviceId": "calendar"
       }
     ]
   },
