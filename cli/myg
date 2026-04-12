@@ -50,6 +50,9 @@ Actions:
   slides [max=<N>]                List all presentations (default: 20)
   slide id=<ID or URL>            Get all slide content
   slide id=<ID or URL> page=<N>   Get specific page content
+  slide create name="TITLE"       Create new presentation
+  slide addpage id=<ID or URL>    Add blank page
+  slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -95,6 +98,10 @@ Examples:
   myg slides max=10
   myg slide id=1abc...xyz
   myg slide id=1abc...xyz page=3
+  myg slide create name="My Presentation"
+  myg slide addpage id=1abc...xyz
+  myg slide addtext id=1abc...xyz page=1 text="Hello World"
+  echo "Long text" | myg slide addtext id=1abc...xyz page=1
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"
@@ -207,6 +214,14 @@ if [[ "$action" == "file" && $# -gt 0 ]]; then
   esac
 fi
 
+# slide subcommands (create/addpage/addtext) use POST
+slide_subaction=""
+if [[ "$action" == "slide" && $# -gt 0 ]]; then
+  case "$1" in
+    create|addpage|addtext|overwrite) slide_subaction="$1"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -215,7 +230,39 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$file_subaction" ]]; then
+if [[ -n "$slide_subaction" ]]; then
+  sl_id=""
+  sl_name=""
+  sl_page=""
+  sl_text=""
+  sl_format=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)     sl_id="${arg#id=}" ;;
+      name=*)   sl_name="${arg#name=}" ;;
+      page=*)   sl_page="${arg#page=}" ;;
+      text=*)   sl_text="${arg#text=}" ;;
+      format=*) sl_format="${arg#format=}" ;;
+    esac
+  done
+
+  if [[ ("$slide_subaction" == "addtext" || "$slide_subaction" == "create" || "$slide_subaction" == "overwrite") && -z "$sl_text" && ! -t 0 ]]; then
+    sl_text=$(cat)
+  fi
+
+  json_body=$(jq -n \
+    --arg sub "$slide_subaction" \
+    --arg id "$sl_id" \
+    --arg name "$sl_name" \
+    --arg page "$sl_page" \
+    --arg text "$sl_text" \
+    --arg format "$sl_format" \
+    '{action: ("slide:" + $sub), id: $id, name: $name, page: $page, text: $text, format: $format}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$file_subaction" ]]; then
   fu_id=""
   fu_folder=""
   fu_name=""

@@ -187,6 +187,20 @@ function doPost(
       case "file:move":
         result = moveFile(body.id, body.folder);
         break;
+      case "slide:create":
+        result = body.format === "markdown" && body.text
+          ? createSlideFromMarkdown(body.name, body.text)
+          : createSlide(body.name);
+        break;
+      case "slide:addpage":
+        result = addSlidePage(resolveId(body));
+        break;
+      case "slide:addtext":
+        result = addSlideText(resolveId(body), body.page, body.text);
+        break;
+      case "slide:overwrite":
+        result = overwriteSlideFromMarkdown(resolveId(body), body.text);
+        break;
       default:
         result = {
           error: "Unknown action",
@@ -208,6 +222,9 @@ function doPost(
             "mail:filter:delete",
             "file:upload",
             "file:move",
+            "slide:create",
+            "slide:addpage",
+            "slide:addtext",
           ],
         };
     }
