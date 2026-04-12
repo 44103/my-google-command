@@ -59,6 +59,12 @@ function doGet(
       case "file":
         result = downloadFile(e.parameter.id);
         break;
+      case "slides":
+        result = listSlides(parseInt(e.parameter.max || "20"));
+        break;
+      case "slide":
+        result = getSlideContent(resolveId(e.parameter), e.parameter.page);
+        break;
       default:
         result = {
           error: "Unknown action",
@@ -73,6 +79,8 @@ function doGet(
             "mail:filters",
             "files",
             "file",
+            "slides",
+            "slide",
             "tasklists",
             "tasks",
             "calendars",

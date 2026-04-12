@@ -47,6 +47,9 @@ Actions:
   file id=<FILE_ID>               Download file content
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
+  slides [max=<N>]                List all presentations (default: 20)
+  slide id=<ID or URL>            Get all slide content
+  slide id=<ID or URL> page=<N>   Get specific page content
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -88,6 +91,10 @@ Examples:
   echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"
   myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png
   myg file move id=<FILE_ID> folder=<FOLDER_ID>
+  myg slides
+  myg slides max=10
+  myg slide id=1abc...xyz
+  myg slide id=1abc...xyz page=3
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"

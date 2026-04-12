@@ -101,6 +101,13 @@ echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"  # テキス
 myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png  # ファイル指定アップロード
 myg file move id=<FILE_ID> folder=<FOLDER_ID>       # ファイル移動
 
+# --- Slides（読み取り） ---
+myg slides                                          # 一覧取得
+myg slides max=10                                   # 件数指定
+myg slide id=<ID>                                   # 全ページのテキスト取得
+myg slide "id=<URL>"                                # URL でも OK
+myg slide id=<ID> page=3                            # 特定ページだけ取得
+
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧
