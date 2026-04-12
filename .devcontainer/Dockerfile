@@ -10,4 +10,5 @@ RUN export DEBIAN_FRONTEND="noninteractive" && \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Asia/Tokyo
+USER node
 RUN zsh -c "`curl -L raw.github.com/44103/dotfiles/main/install.sh`"

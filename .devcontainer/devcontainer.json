@@ -2,7 +2,7 @@
   "name": "Node.js",
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "nodejs",
-  "remoteUser": "root",
+  "remoteUser": "node",
   "workspaceFolder": "/work",
   "customizations": {
     "vscode": {
