@@ -114,6 +114,20 @@ myg slide addpage id=<ID>                            # 空白ページ追加
 myg slide addtext id=<ID> page=1 text="テキスト"      # テキストボックス追加
 echo "長いテキスト" | myg slide addtext id=<ID> page=1  # stdin からも可
 
+# --- Forms ---
+myg forms                                           # フォーム一覧
+myg form id=<ID>                                    # 質問一覧・詳細
+myg form "id=<URL>"                                 # URL でも OK
+myg form responses id=<ID>                          # 回答一覧
+myg form create name="アンケート"                    # 新規作成
+myg form create name="アンケート" description="説明"  # 説明付き
+myg form additem id=<ID> type=text title="名前" required          # テキスト（必須）
+myg form additem id=<ID> type=paragraph title="詳細"              # 長文テキスト
+myg form additem id=<ID> type=choice title="Q" "choices=A,B,C"   # ラジオボタン
+myg form additem id=<ID> type=checkbox title="Q" "choices=A,B,C" # チェックボックス
+myg form additem id=<ID> type=dropdown title="Q" "choices=A,B,C" # プルダウン
+myg form additem id=<ID> type=scale title="評価" low=1 high=10 lowLabel="低" highLabel="高"  # スケール
+
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧
@@ -242,22 +256,31 @@ yarn open  # GAS エディタを開く
 
 ```
 ├── cli/
-│   └── myg          # CLI コマンド（bash + curl + jq）
+│   └── myg              # CLI コマンド（bash + curl + jq）
 ├── scripts/
-│   ├── build        # ビルドスクリプト
-│   ├── deploy       # デプロイスクリプト
-│   └── install      # ユーザー向けインストーラー
+│   ├── build            # ビルドスクリプト
+│   ├── deploy           # デプロイスクリプト
+│   └── install          # ユーザー向けインストーラー
 ├── src/
-│   ├── main.ts      # doGet/doPost エントリポイント（ルーティング）
-│   ├── spreadsheet.ts # listSpreadsheets, listSheets, getSheetData, writeSheet
-│   ├── docs.ts      # listDocs, getDocContent, createDoc, appendDoc, overwriteDoc
-│   ├── gmail.ts
-│   ├── tasks.ts     # listTaskLists, listTasks, createTask, completeTask
-│   ├── calendar.ts  # listCalendars, listEvents, createEvent
-│   ├── markdown.ts  # Markdown → Google Docs 変換
-│   ├── highlight.ts     # シンタックスハイライトエンジン（言語非依存）
-│   ├── highlight-lang.ts # 言語定義（TS/JS, Python, Go, Bash, Ruby）
-│   └── utils.ts     # 共通ヘルパー（resolveId）
+│   ├── main.ts          # doGet/doPost エントリポイント（ルーティング）
+│   ├── spreadsheet.ts   # Spreadsheet 操作
+│   ├── docs.ts          # Docs 操作
+│   ├── docs/
+│   │   ├── markdown.ts  # Markdown → Google Docs 変換
+│   │   └── highlight.ts # Docs 用ハイライトラッパー
+│   ├── slides.ts        # Slides 操作
+│   ├── slides/
+│   │   └── markdown.ts  # Markdown → Google Slides 変換
+│   ├── gmail.ts         # Gmail 操作
+│   ├── drive.ts         # Drive 操作
+│   ├── forms.ts         # Forms 操作
+│   ├── tasks.ts         # Tasks 操作
+│   ├── calendar.ts      # Calendar 操作
+│   └── utils/
+│       ├── id.ts        # 共通ヘルパー（resolveId）
+│       ├── markdown.ts  # 共通 Markdown パーサー
+│       ├── highlight.ts # 共通シンタックスハイライトエンジン
+│       └── highlight-lang.ts # 言語定義（TS/JS, Python, Go, Bash, Ruby）
 ├── .env.example
 └── package.json
 ```

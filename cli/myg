@@ -53,6 +53,13 @@ Actions:
   slide create name="TITLE"       Create new presentation
   slide addpage id=<ID or URL>    Add blank page
   slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
+  forms [max=<N>]               List all forms (default: 20)
+  form id=<ID or URL>           Get form detail (questions)
+  form responses id=<ID or URL> Get form responses
+  form create name="TITLE" [description="..."]  Create new form
+  form additem id=<ID> type=<TYPE> title="Q" [choices="A,B,C"] [required]
+    Types: text, paragraph, choice, checkbox, dropdown, scale
+    Scale options: low=1 high=5 lowLabel="Low" highLabel="High"
   tasklists                     List task lists
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
@@ -222,6 +229,15 @@ if [[ "$action" == "slide" && $# -gt 0 ]]; then
   esac
 fi
 
+# form subcommands use POST or special GET
+form_subaction=""
+if [[ "$action" == "form" && $# -gt 0 ]]; then
+  case "$1" in
+    create|additem) form_subaction="$1"; shift ;;
+    responses)      form_subaction="responses"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -230,7 +246,58 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$slide_subaction" ]]; then
+if [[ -n "$form_subaction" ]]; then
+  fm_id=""
+  fm_name=""
+  fm_desc=""
+  fm_type=""
+  fm_title=""
+  fm_choices=""
+  fm_required=""
+  fm_low=""
+  fm_high=""
+  fm_lowLabel=""
+  fm_highLabel=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)        fm_id="${arg#id=}" ;;
+      name=*)      fm_name="${arg#name=}" ;;
+      description=*) fm_desc="${arg#description=}" ;;
+      type=*)      fm_type="${arg#type=}" ;;
+      title=*)     fm_title="${arg#title=}" ;;
+      choices=*)   fm_choices="${arg#choices=}" ;;
+      required)    fm_required="true" ;;
+      low=*)       fm_low="${arg#low=}" ;;
+      high=*)      fm_high="${arg#high=}" ;;
+      lowLabel=*)  fm_lowLabel="${arg#lowLabel=}" ;;
+      highLabel=*) fm_highLabel="${arg#highLabel=}" ;;
+    esac
+  done
+
+  if [[ "$form_subaction" == "responses" ]]; then
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      "${BASE}?action=form:responses&id=${fm_id}")
+  else
+    json_body=$(jq -n \
+      --arg sub "$form_subaction" \
+      --arg id "$fm_id" \
+      --arg name "$fm_name" \
+      --arg description "$fm_desc" \
+      --arg type "$fm_type" \
+      --arg title "$fm_title" \
+      --arg choices "$fm_choices" \
+      --arg required "$fm_required" \
+      --arg low "$fm_low" \
+      --arg high "$fm_high" \
+      --arg lowLabel "$fm_lowLabel" \
+      --arg highLabel "$fm_highLabel" \
+      '{action: ("form:" + $sub), id: $id, name: $name, description: $description, type: $type, title: $title, choices: $choices, required: $required, low: $low, high: $high, lowLabel: $lowLabel, highLabel: $highLabel}')
+
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
+  fi
+elif [[ -n "$slide_subaction" ]]; then
   sl_id=""
   sl_name=""
   sl_page=""

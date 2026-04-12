@@ -65,6 +65,15 @@ function doGet(
       case "slide":
         result = getSlideContent(resolveId(e.parameter), e.parameter.page);
         break;
+      case "forms":
+        result = listForms(parseInt(e.parameter.max || "20"));
+        break;
+      case "form":
+        result = getFormDetail(resolveId(e.parameter));
+        break;
+      case "form:responses":
+        result = getFormResponses(resolveId(e.parameter));
+        break;
       default:
         result = {
           error: "Unknown action",
@@ -200,6 +209,15 @@ function doPost(
         break;
       case "slide:overwrite":
         result = overwriteSlideFromMarkdown(resolveId(body), body.text);
+        break;
+      case "form:create":
+        result = createForm(body.name, body.description);
+        break;
+      case "form:additem":
+        result = addFormItem(resolveId(body), body.type, body.title, {
+          choices: body.choices, required: body.required === "true" || body.required === true,
+          low: body.low, high: body.high, lowLabel: body.lowLabel, highLabel: body.highLabel,
+        });
         break;
       default:
         result = {
