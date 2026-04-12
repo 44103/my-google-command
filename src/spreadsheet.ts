@@ -49,3 +49,8 @@ function createSheet(id: string, sheetName: string): { spreadsheetName: string; 
   ss.insertSheet(sheetName);
   return { spreadsheetName: ss.getName(), sheet: sheetName };
 }
+
+function createSpreadsheet(name: string): { id: string; name: string; url: string } {
+  const ss = SpreadsheetApp.create(name);
+  return { id: ss.getId(), name: ss.getName(), url: ss.getUrl() };
+}
