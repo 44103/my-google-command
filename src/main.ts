@@ -53,6 +53,9 @@ function doGet(
       case "event:freebusy":
         result = findFreeSlots(e.parameter.emails, e.parameter.from, e.parameter.to, e.parameter.duration);
         break;
+      case "rooms":
+        result = listRooms(e.parameter.q);
+        break;
       case "mail:filters":
         result = listFilters();
         break;

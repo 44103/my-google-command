@@ -129,3 +129,24 @@ function findFreeSlots(
 
   return { slots, busyInfo };
 }
+
+function listRooms(query?: string): { id: string; name: string }[] {
+  // Try Admin Directory API first, fall back to CalendarList
+  try {
+    const resp = AdminDirectory.Resources!.Calendars!.list("my_customer", { maxResults: 200, query: query || undefined });
+    return ((resp as { items?: { resourceEmail?: string; generatedResourceName?: string }[] }).items || []).map((r) => ({
+      id: r.resourceEmail || "",
+      name: r.generatedResourceName || "",
+    }));
+  } catch (_) {
+    // Fall back to subscribed calendars (Admin SDK requires admin privileges)
+    const resp = Calendar.CalendarList!.list({ maxResults: 250, showHidden: true });
+    const items = resp.items || [];
+    let rooms = items.filter((c: { id?: string }) => (c.id || "").includes("resource.calendar.google.com"));
+    if (query) {
+      const q = query.toLowerCase();
+      rooms = rooms.filter((c: { summary?: string }) => (c.summary || "").toLowerCase().includes(q));
+    }
+    return rooms.map((c: { id?: string; summary?: string }) => ({ id: c.id || "", name: c.summary || "" }));
+  }
+}
