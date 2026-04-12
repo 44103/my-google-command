@@ -74,6 +74,15 @@ function doGet(
       case "form:responses":
         result = getFormResponses(resolveId(e.parameter));
         break;
+      case "contacts":
+        result = listContacts(parseInt(e.parameter.max || "20"));
+        break;
+      case "contacts:search":
+        result = listDirectoryPeople(e.parameter.q, parseInt(e.parameter.max || "20"));
+        break;
+      case "contact":
+        result = getContact(e.parameter.id);
+        break;
       default:
         result = {
           error: "Unknown action",

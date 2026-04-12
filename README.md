@@ -130,6 +130,14 @@ myg form additem id=<ID> type=scale title="評価" low=1 high=10 lowLabel="低" 
 
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
+
+# --- Contacts ---
+myg contacts                                        # 個人の連絡先一覧
+myg contacts search q="松尾"                         # 組織ディレクトリ検索
+myg contact id=<RESOURCE_NAME>                      # 連絡先詳細（上司・従業員ID等）
+
+# --- Tasks ---
+myg tasklists                                       # タスクリスト一覧
 myg tasks id=<TASKLIST_ID>                          # タスク一覧
 myg task create id=<TASKLIST_ID> title="タスク名"    # タスク作成
 myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10  # 期限付き

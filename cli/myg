@@ -66,6 +66,9 @@ Actions:
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
+  contacts [max=<N>]            List personal contacts (default: 20)
+  contacts search q=<QUERY> [max=<N>]  Search organization directory
+  contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
   event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
@@ -238,6 +241,14 @@ if [[ "$action" == "form" && $# -gt 0 ]]; then
   esac
 fi
 
+# contacts subcommands
+contacts_subaction=""
+if [[ "$action" == "contacts" && $# -gt 0 ]]; then
+  case "$1" in
+    search) contacts_subaction="search"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -246,7 +257,18 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$form_subaction" ]]; then
+if [[ -n "$contacts_subaction" ]]; then
+  c_q=""
+  c_max=""
+  for arg in "$@"; do
+    case "$arg" in
+      q=*)   c_q="${arg#q=}" ;;
+      max=*) c_max="${arg#max=}" ;;
+    esac
+  done
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=contacts:search" --data-urlencode "q=${c_q}" --data-urlencode "max=${c_max:-20}" "$BASE")
+elif [[ -n "$form_subaction" ]]; then
   fm_id=""
   fm_name=""
   fm_desc=""

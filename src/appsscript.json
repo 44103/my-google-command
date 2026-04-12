@@ -11,6 +11,11 @@
         "userSymbol": "Gmail",
         "version": "v1",
         "serviceId": "gmail"
+      },
+      {
+        "userSymbol": "People",
+        "version": "v1",
+        "serviceId": "peopleapi"
       }
     ]
   },
@@ -29,6 +34,8 @@
     "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/presentations",
-    "https://www.googleapis.com/auth/forms"
+    "https://www.googleapis.com/auth/forms",
+    "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/directory.readonly"
   ]
 }
