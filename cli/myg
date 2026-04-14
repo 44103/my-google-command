@@ -41,6 +41,7 @@ Actions:
   mail draft id=<DRAFT_ID> to=<ADDR> subject="..." (stdin for body)  Update draft
   mail draft delete id=<DRAFT_ID>  Delete draft
   mail filters                    List Gmail filters
+  mail labels                     List Gmail labels
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
   files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
@@ -205,6 +206,7 @@ if [[ "$action" == "mail" && $# -gt 0 ]]; then
              mail_subaction="draft:delete"; shift
            fi ;;
     filters) mail_subaction="filters" ; shift ;;
+    labels)  mail_subaction="labels" ; shift ;;
     filter)  shift
              case "$1" in
                create|delete) mail_subaction="filter:$1"; shift ;;
@@ -471,6 +473,9 @@ elif [[ -n "$file_subaction" ]]; then
 elif [[ "$mail_subaction" == "filters" ]]; then
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     "${BASE}?action=mail:filters")
+elif [[ "$mail_subaction" == "labels" ]]; then
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    "${BASE}?action=mail:labels")
 elif [[ "$mail_subaction" == "label" ]]; then
   ml_query=""
   ml_label=""

@@ -44,6 +44,7 @@ Actions:
   mail draft id=<DRAFT_ID> to=<ADDR> subject="..." (stdin for body)  Update draft
   mail draft delete id=<DRAFT_ID>  Delete draft
   mail filters                    List Gmail filters
+  mail labels                     List Gmail labels
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
   files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
@@ -293,6 +294,12 @@ switch ($action) {
     # --- Mail filters (GET) ---
     { $_ -eq "mail" -and $subaction -eq "filters" } {
         Format-Output (Invoke-Api -Method GET -Query @{ action = "mail:filters" })
+        break
+    }
+
+    # --- Mail labels (GET) ---
+    { $_ -eq "mail" -and $subaction -eq "labels" } {
+        Format-Output (Invoke-Api -Method GET -Query @{ action = "mail:labels" })
         break
     }
 

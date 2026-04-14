@@ -48,6 +48,13 @@ function labelMails(query: string, labelName: string, skipInbox?: boolean): { la
   return { labeled: threads.length, label: labelName, query };
 }
 
+function listLabels(): { id: string; name: string; type: string }[] {
+  const res = Gmail.Users!.Labels!.list("me");
+  return (res.labels || []).map((l: GoogleAppsScript.Gmail.Schema.Label) => ({
+    id: l.id!, name: l.name!, type: l.type || "user",
+  }));
+}
+
 function listFilters(): object[] {
   const res = Gmail.Users!.Settings!.Filters!.list("me");
   return (res.filter || []).map((f: GoogleAppsScript.Gmail.Schema.Filter) => ({

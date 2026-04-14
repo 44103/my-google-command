@@ -65,6 +65,9 @@ function doGet(
       case "mail:filters":
         result = listFilters();
         break;
+      case "mail:labels":
+        result = listLabels();
+        break;
       case "files":
         result = listDriveFiles(e.parameter.id, e.parameter.max);
         break;
