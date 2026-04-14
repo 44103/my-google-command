@@ -158,6 +158,20 @@ if ($action -in "--help", "-h", "help") { Show-Help }
 
 # Auth
 if ($action -eq "auth") {
+    # Auto-update check
+    try {
+        $oldRev = git -C $ProjectDir rev-parse HEAD 2>$null
+        git -C $ProjectDir fetch --quiet 2>$null
+        $newRev = git -C $ProjectDir rev-parse origin/main 2>$null
+        if ($oldRev -and $newRev -and $oldRev -ne $newRev) {
+            git -C $ProjectDir reset --hard origin/main --quiet 2>$null
+            $count = git -C $ProjectDir rev-list "$oldRev..$newRev" --count
+            Write-Host "Updated myg ($count new commit(s)):" -ForegroundColor Yellow
+            git -C $ProjectDir log --oneline "$oldRev..$newRev" | ForEach-Object { Write-Host "  - $_" }
+            Write-Host ""
+        }
+    } catch {}
+
     $authUrl = "$Base`?action=auth"
     Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
     Start-Process $authUrl
