@@ -7,10 +7,15 @@ GAS（Google Apps Script）を自分専用のプロキシとして使い、`curl
 
 ### 必要なもの
 
+**macOS / Linux:**
 - bash, curl, jq
 - ブラウザ（初回認証用）
 
-### セットアップ
+**Windows:**
+- PowerShell 5.1 以上（Windows 10 標準搭載）
+- ブラウザ（初回認証用）
+
+### セットアップ（macOS / Linux）
 
 1. リポジトリをクローン
 
@@ -43,6 +48,43 @@ export PATH="$HOME/.local/bin:$PATH"
 4. 認証
 
 ```bash
+myg auth
+```
+
+ブラウザが開きます。初回は Google の承認ダイアログが表示されるので、すべて許可してください。
+トークンが表示されたら「Copy Token」ボタンでコピーし、ターミナルに戻ってペーストしてください。
+
+> トークンは約1時間で期限切れになります。切れたら再度 `myg auth` を実行してください。
+
+### セットアップ（Windows）
+
+1. リポジトリをクローン
+
+```powershell
+git clone <repository-url>
+cd my-google-command
+```
+
+2. `.env` を作成
+
+```powershell
+Copy-Item .env.example .env
+```
+
+実装者から共有された `DEPLOY_ID` を `.env` に記入してください。
+
+3. インストール
+
+```powershell
+.\scripts\install.ps1
+```
+
+`%LOCALAPPDATA%\myg\bin` に `myg.cmd` がインストールされます。
+PATH への追加を確認されるので、`y` を入力してください（ターミナルの再起動が必要です）。
+
+4. 認証
+
+```powershell
 myg auth
 ```
 
@@ -265,11 +307,14 @@ yarn open  # GAS エディタを開く
 
 ```
 ├── cli/
-│   └── myg              # CLI コマンド（bash + curl + jq）
+│   ├── myg              # CLI コマンド（bash + curl + jq）
+│   ├── myg.ps1          # CLI コマンド（PowerShell 版）
+│   └── myg.cmd          # Windows 用 cmd ラッパー
 ├── scripts/
 │   ├── build            # ビルドスクリプト
 │   ├── deploy           # デプロイスクリプト
-│   └── install          # ユーザー向けインストーラー
+│   ├── install          # ユーザー向けインストーラー（macOS / Linux）
+│   └── install.ps1      # ユーザー向けインストーラー（Windows）
 ├── src/
 │   ├── main.ts          # doGet/doPost エントリポイント（ルーティング）
 │   ├── spreadsheet.ts   # Spreadsheet 操作
