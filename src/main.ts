@@ -72,10 +72,10 @@ function doGet(
         result = downloadFile(e.parameter.id);
         break;
       case "file:history":
-        result = listRevisions(e.parameter.id, parseInt(e.parameter.max || "20"));
+        result = listRevisions(resolveId(e.parameter), parseInt(e.parameter.max || "20"));
         break;
       case "file:revision":
-        result = diffRevisions(e.parameter.id, e.parameter.rev1, e.parameter.rev2);
+        result = diffRevisions(resolveId(e.parameter), e.parameter.rev1, e.parameter.rev2);
         break;
       case "slides":
         result = listSlides(parseInt(e.parameter.max || "20"));
