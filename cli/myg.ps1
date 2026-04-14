@@ -68,6 +68,9 @@ Actions:
     Types: text, paragraph, choice, checkbox, dropdown, scale
     Scale options: low=1 high=5 lowLabel="Low" highLabel="High"
   tasklists                     List task lists
+  tasklist create title="TITLE"  Create task list
+  tasklist update id=<TASKLIST_ID> title="NEW TITLE"  Rename task list
+  tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
@@ -362,6 +365,15 @@ switch ($action) {
         $body = @{
             action = "task:$subaction"; id = Get-Val "id"; title = Get-Val "title"
             due = Get-Val "due"; task = Get-Val "task"; notes = Get-Val "notes"
+        }
+        Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Tasklist subcommands (POST) ---
+    { $_ -eq "tasklist" -and $subaction -in "create", "update", "delete" } {
+        $body = @{
+            action = "tasklist:$subaction"; id = Get-Val "id"; title = Get-Val "title"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

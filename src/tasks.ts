@@ -3,6 +3,21 @@ function listTaskLists(): { id: string; title: string }[] {
   return (res.items || []).map(tl => ({ id: tl.id!, title: tl.title! }));
 }
 
+function createTaskList(title: string): { id: string; title: string } {
+  const created = Tasks.Tasklists!.insert({ title });
+  return { id: created.id!, title: created.title! };
+}
+
+function updateTaskList(id: string, title: string): { id: string; title: string } {
+  const updated = Tasks.Tasklists!.patch({ title }, id);
+  return { id: updated.id!, title: updated.title! };
+}
+
+function deleteTaskList(id: string): { deleted: true; id: string } {
+  Tasks.Tasklists!.remove(id);
+  return { deleted: true, id };
+}
+
 function listTasks(taskListId: string): { id: string; title: string; status: string; due: string | null }[] {
   const res = Tasks.Tasks!.list(taskListId, { showCompleted: false });
   return (res.items || []).map(t => ({

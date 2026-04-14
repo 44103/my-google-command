@@ -169,6 +169,15 @@ function doPost(
       case "task:create":
         result = createTask(body.id, body.title, body.due, body.notes);
         break;
+      case "tasklist:create":
+        result = createTaskList(body.title);
+        break;
+      case "tasklist:update":
+        result = updateTaskList(body.id, body.title);
+        break;
+      case "tasklist:delete":
+        result = deleteTaskList(body.id);
+        break;
       case "task:update":
         result = updateTask(body.id, body.task, {
           title: body.title,

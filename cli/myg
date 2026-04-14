@@ -65,6 +65,9 @@ Actions:
     Types: text, paragraph, choice, checkbox, dropdown, scale
     Scale options: low=1 high=5 lowLabel="Low" highLabel="High"
   tasklists                     List task lists
+  tasklist create title="TITLE"  Create task list
+  tasklist update id=<TASKLIST_ID> title="NEW TITLE"  Rename task list
+  tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
@@ -232,6 +235,14 @@ task_subaction=""
 if [[ "$action" == "task" && $# -gt 0 ]]; then
   case "$1" in
     create|done|update|delete) task_subaction="$1"; shift ;;
+  esac
+fi
+
+# tasklist subcommands use POST
+tasklist_subaction=""
+if [[ "$action" == "tasklist" && $# -gt 0 ]]; then
+  case "$1" in
+    create|update|delete) tasklist_subaction="$1"; shift ;;
   esac
 fi
 
@@ -618,6 +629,25 @@ elif [[ -n "$task_subaction" ]]; then
     --arg task "$t_task" \
     --arg notes "$t_notes" \
     '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task, notes: $notes}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$tasklist_subaction" ]]; then
+  tl_id=""
+  tl_title=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)    tl_id="${arg#id=}" ;;
+      title=*) tl_title="${arg#title=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg sub "$tasklist_subaction" \
+    --arg id "$tl_id" \
+    --arg title "$tl_title" \
+    '{action: ("tasklist:" + $sub), id: $id, title: $title}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
