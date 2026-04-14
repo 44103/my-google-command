@@ -29,6 +29,26 @@ function createEvent(calId: string, title: string, start: string, end: string, l
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 
+function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string }): { id: string; title: string; start: string; end: string } {
+  const cal = resolveCal(calId);
+  const ev = cal.getEventById(eventId);
+  if (!ev) throw new Error("Event not found: " + eventId);
+  if (opts.title) ev.setTitle(opts.title);
+  if (opts.start && opts.end) ev.setTime(new Date(opts.start), new Date(opts.end));
+  else if (opts.start) ev.setTime(new Date(opts.start), ev.getEndTime());
+  else if (opts.end) ev.setTime(ev.getStartTime(), new Date(opts.end));
+  if (opts.location) ev.setLocation(opts.location);
+  return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
+}
+
+function deleteEvent(calId: string, eventId: string): { deleted: string } {
+  const cal = resolveCal(calId);
+  const ev = cal.getEventById(eventId);
+  if (!ev) throw new Error("Event not found: " + eventId);
+  ev.deleteEvent();
+  return { deleted: eventId };
+}
+
 function findFreeSlots(
   emails: string,
   from?: string,

@@ -79,6 +79,8 @@ Actions:
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
   event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...]  Update event
+  event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
@@ -344,11 +346,12 @@ switch ($action) {
         break
     }
 
-    # --- Event create (POST) ---
-    { $_ -eq "event" -and $subaction -eq "create" } {
+    # --- Event create/update/delete (POST) ---
+    { $_ -eq "event" -and $subaction -in "create", "update", "delete" } {
         $body = @{
-            action = "event:create"; id = Get-Val "id"; title = Get-Val "title"
-            start = Get-Val "start"; end = Get-Val "end"; location = Get-Val "location"
+            action = "event:$subaction"; id = Get-Val "id"; event = Get-Val "event"
+            title = Get-Val "title"; start = Get-Val "start"; end = Get-Val "end"
+            location = Get-Val "location"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
