@@ -47,6 +47,7 @@ Actions:
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
   files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
+  files search q=<QUERY> [max=<N>]  Search files across Drive
   file id=<FILE_ID>               Download file content
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
@@ -186,6 +187,14 @@ if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') {
 function Get-Val { param([string]$key, [string]$default = "") ; if ($parsed.ContainsKey($key)) { $parsed[$key] } else { $default } }
 
 switch ($action) {
+    # --- Files search (GET) ---
+    { $_ -eq "files" -and $subaction -eq "search" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "files:search"; q = (Get-Val "q"); max = (Get-Val "max" "20")
+        })
+        break
+    }
+
     # --- Contacts search (GET with query) ---
     { $_ -eq "contacts" -and $subaction -eq "search" } {
         Format-Output (Invoke-Api -Method GET -Query @{

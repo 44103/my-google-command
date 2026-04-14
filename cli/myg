@@ -44,6 +44,7 @@ Actions:
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
   files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
+  files search q=<QUERY> [max=<N>]  Search files across Drive
   file id=<FILE_ID>               Download file content
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
@@ -105,6 +106,7 @@ Examples:
   myg mail filter delete id=<FILTER_ID>
   myg files
   myg files id=<FOLDER_ID> max=10
+  myg files search q="keyword"
   myg file id=<FILE_ID>
   echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"
   myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png
@@ -264,6 +266,14 @@ if [[ "$action" == "contacts" && $# -gt 0 ]]; then
   esac
 fi
 
+# files subcommands
+files_subaction=""
+if [[ "$action" == "files" && $# -gt 0 ]]; then
+  case "$1" in
+    search) files_subaction="search"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -272,7 +282,18 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$contacts_subaction" ]]; then
+if [[ -n "$files_subaction" ]]; then
+  fs_q=""
+  fs_max=""
+  for arg in "$@"; do
+    case "$arg" in
+      q=*)   fs_q="${arg#q=}" ;;
+      max=*) fs_max="${arg#max=}" ;;
+    esac
+  done
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=files:search" --data-urlencode "q=${fs_q}" --data-urlencode "max=${fs_max:-20}" "$BASE")
+elif [[ -n "$contacts_subaction" ]]; then
   c_q=""
   c_max=""
   for arg in "$@"; do

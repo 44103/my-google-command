@@ -96,3 +96,13 @@ function diffRevisions(fileId: string, rev1: string, rev2: string): { name: stri
   }
   return { name: file.getName(), rev1, rev2, diff };
 }
+
+function searchFiles(query: string, max = 20): { id: string; name: string; type: string; updated: string }[] {
+  const files = DriveApp.searchFiles("title contains '" + query.replace(/'/g, "\\'") + "'");
+  const result: { id: string; name: string; type: string; updated: string }[] = [];
+  while (files.hasNext() && result.length < max) {
+    const f = files.next();
+    result.push({ id: f.getId(), name: f.getName(), type: f.getMimeType(), updated: f.getLastUpdated().toISOString() });
+  }
+  return result;
+}

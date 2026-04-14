@@ -68,6 +68,9 @@ function doGet(
       case "files":
         result = listDriveFiles(e.parameter.id, e.parameter.max);
         break;
+      case "files:search":
+        result = searchFiles(e.parameter.q, parseInt(e.parameter.max || "20"));
+        break;
       case "file":
         result = downloadFile(e.parameter.id);
         break;
