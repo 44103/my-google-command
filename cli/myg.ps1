@@ -51,6 +51,8 @@ Actions:
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
+  file history id=<FILE_ID> [max=<N>]  List revision history
+  file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
   slides [max=<N>]                List all presentations (default: 20)
   slide id=<ID or URL>            Get all slide content
   slide id=<ID or URL> page=<N>   Get specific page content
@@ -222,6 +224,23 @@ switch ($action) {
             page = Get-Val "page"; text = $text; format = Get-Val "format"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- File history (GET) ---
+    { $_ -eq "file" -and $subaction -eq "history" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "file:history"; id = (Get-Val "id"); max = (Get-Val "max" "20")
+        })
+        break
+    }
+
+    # --- File diff (server-side diff) ---
+    { $_ -eq "file" -and $subaction -eq "diff" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "file:revision"; id = (Get-Val "id")
+            rev1 = (Get-Val "rev1"); rev2 = (Get-Val "rev2")
+        })
         break
     }
 

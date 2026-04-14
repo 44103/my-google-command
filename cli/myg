@@ -48,6 +48,8 @@ Actions:
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
+  file history id=<FILE_ID> [max=<N>]  List revision history
+  file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
   slides [max=<N>]                List all presentations (default: 20)
   slide id=<ID or URL>            Get all slide content
   slide id=<ID or URL> page=<N>   Get specific page content
@@ -109,6 +111,8 @@ Examples:
   myg file move id=<FILE_ID> folder=<FOLDER_ID>
   myg file copy id=<FILE_ID>
   myg file copy id=<FILE_ID> folder=<FOLDER_ID> name="Copy"
+  myg file history id=<FILE_ID>
+  myg file diff id=<FILE_ID> rev1=1 rev2=22
   myg slides
   myg slides max=10
   myg slide id=1abc...xyz
@@ -231,7 +235,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move|copy) file_subaction="$1"; shift ;;
+    upload|move|copy|history|diff) file_subaction="$1"; shift ;;
   esac
 fi
 
@@ -367,16 +371,29 @@ elif [[ -n "$file_subaction" ]]; then
   fu_folder=""
   fu_name=""
   fu_file=""
+  fu_max=""
+  fu_rev1=""
+  fu_rev2=""
   for arg in "$@"; do
     case "$arg" in
       id=*)     fu_id="${arg#id=}" ;;
       folder=*) fu_folder="${arg#folder=}" ;;
       name=*)   fu_name="${arg#name=}" ;;
       file=*)   fu_file="${arg#file=}" ;;
+      max=*)    fu_max="${arg#max=}" ;;
+      rev1=*)   fu_rev1="${arg#rev1=}" ;;
+      rev2=*)   fu_rev2="${arg#rev2=}" ;;
     esac
   done
 
-  if [[ "$file_subaction" == "upload" ]]; then
+  if [[ "$file_subaction" == "diff" ]]; then
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:revision" --data-urlencode "id=${fu_id}" \
+      --data-urlencode "rev1=${fu_rev1}" --data-urlencode "rev2=${fu_rev2}" "$BASE")
+  elif [[ "$file_subaction" == "history" ]]; then
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:history" --data-urlencode "id=${fu_id}" --data-urlencode "max=${fu_max:-20}" "$BASE")
+  elif [[ "$file_subaction" == "upload" ]]; then
     if [[ -n "$fu_file" ]]; then
       fu_tmp=$(mktemp)
       base64 -w0 "$fu_file" > "$fu_tmp"

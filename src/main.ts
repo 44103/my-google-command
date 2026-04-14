@@ -1,3 +1,9 @@
+// Run this function manually in GAS editor to trigger scope authorization
+function authorizeScopes() {
+  UrlFetchApp.fetch("https://www.google.com");
+  Drive.Revisions!.list("dummy");
+}
+
 function doGet(
   e: GoogleAppsScript.Events.DoGet,
 ): GoogleAppsScript.Content.TextOutput | GoogleAppsScript.HTML.HtmlOutput {
@@ -65,6 +71,12 @@ function doGet(
       case "file":
         result = downloadFile(e.parameter.id);
         break;
+      case "file:history":
+        result = listRevisions(e.parameter.id, parseInt(e.parameter.max || "20"));
+        break;
+      case "file:revision":
+        result = diffRevisions(e.parameter.id, e.parameter.rev1, e.parameter.rev2);
+        break;
       case "slides":
         result = listSlides(parseInt(e.parameter.max || "20"));
         break;
@@ -103,6 +115,7 @@ function doGet(
             "mail:filters",
             "files",
             "file",
+            "file:history",
             "slides",
             "slide",
             "tasklists",
