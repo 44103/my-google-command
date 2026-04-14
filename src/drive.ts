@@ -38,3 +38,10 @@ function moveFile(fileId: string, destFolderId: string): { id: string; name: str
   file.moveTo(dest);
   return { id: file.getId(), name: file.getName(), folder: dest.getName() };
 }
+
+function copyFile(fileId: string, destFolderId?: string, name?: string): { id: string; name: string; folder: string } {
+  const src = DriveApp.getFileById(fileId);
+  const dest = destFolderId ? DriveApp.getFolderById(destFolderId) : src.getParents().next();
+  const copy = src.makeCopy(name || src.getName(), dest);
+  return { id: copy.getId(), name: copy.getName(), folder: dest.getName() };
+}

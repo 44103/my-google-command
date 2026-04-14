@@ -34,7 +34,7 @@ Actions:
   doc create name="TITLE"       Create new document (stdin for body)
   doc append id=<ID or URL>     Append text from stdin
   doc overwrite id=<ID or URL>  Overwrite with text from stdin
-    ※ Add format=markdown to convert Markdown with styling
+    Note: Add format=markdown to convert Markdown with styling
   mails [q=<QUERY>] [max=<N>]  List emails (default: inbox, 20)
   mail id=<MESSAGE_ID>          Get email content
   mail draft to=<ADDR> subject="..." (stdin for body)  Create draft
@@ -47,6 +47,7 @@ Actions:
   file id=<FILE_ID>               Download file content
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
+  file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
   slides [max=<N>]                List all presentations (default: 20)
   slide id=<ID or URL>            Get all slide content
   slide id=<ID or URL> page=<N>   Get specific page content
@@ -72,7 +73,7 @@ Actions:
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
   event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
-    ※ id=self or omit id to use your default calendar
+    Note: id=self or omit id to use your default calendar
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
 
@@ -94,8 +95,8 @@ Examples:
   myg mails
   myg mails "q=from:someone@example.com" max=10
   myg mail id=18e1a2b3c4d5e6f7
-  echo "本文" | myg mail draft to=someone@example.com subject="件名"
-  echo "本文" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="件名"
+  echo "body" | myg mail draft to=someone@example.com subject="Subject"
+  echo "body" | myg mail draft id=<DRAFT_ID> to=someone@example.com subject="Subject"
   myg mail draft delete id=<DRAFT_ID>
   myg mail filters
   myg mail filter create q="from:someone@example.com" label="Work"
@@ -106,6 +107,8 @@ Examples:
   echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"
   myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png
   myg file move id=<FILE_ID> folder=<FOLDER_ID>
+  myg file copy id=<FILE_ID>
+  myg file copy id=<FILE_ID> folder=<FOLDER_ID> name="Copy"
   myg slides
   myg slides max=10
   myg slide id=1abc...xyz
@@ -228,7 +231,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move) file_subaction="$1"; shift ;;
+    upload|move|copy) file_subaction="$1"; shift ;;
   esac
 fi
 
@@ -404,9 +407,11 @@ elif [[ -n "$file_subaction" ]]; then
     rm -f "$fu_json"
   else
     json_body=$(jq -n \
+      --arg action "file:$file_subaction" \
       --arg id "$fu_id" \
       --arg folder "$fu_folder" \
-      '{action: "file:move", id: $id, folder: $folder}')
+      --arg name "$fu_name" \
+      '{action: $action, id: $id, folder: $folder, name: $name}')
 
     response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
       -H "Content-Type: application/json" \

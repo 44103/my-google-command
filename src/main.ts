@@ -214,6 +214,9 @@ function doPost(
       case "file:move":
         result = moveFile(body.id, body.folder);
         break;
+      case "file:copy":
+        result = copyFile(body.id, body.folder, body.name);
+        break;
       case "slide:create":
         result = body.format === "markdown" && body.text
           ? createSlideFromMarkdown(body.name, body.text)
@@ -258,6 +261,7 @@ function doPost(
             "mail:filter:delete",
             "file:upload",
             "file:move",
+            "file:copy",
             "slide:create",
             "slide:addpage",
             "slide:addtext",
