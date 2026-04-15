@@ -13,26 +13,41 @@ function listSpreadsheets(max = 20): { id: string; name: string; url: string; la
   return result;
 }
 
+function openAsSpreadsheet(id: string): { ss: GoogleAppsScript.Spreadsheet.Spreadsheet; tempId?: string } {
+  const file = DriveApp.getFileById(id);
+  const mime = file.getMimeType();
+  if (mime === MimeType.GOOGLE_SHEETS) return { ss: SpreadsheetApp.openById(id) };
+  if (mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    const blob = file.getBlob();
+    const tmp = (Drive as unknown as GoogleAppsScript.Drive_v2).Files!.insert({ title: "__tmp_xlsx_" + Date.now(), mimeType: MimeType.GOOGLE_SHEETS }, blob);
+    return { ss: SpreadsheetApp.openById(tmp.id!), tempId: tmp.id! };
+  }
+  throw new Error(`Unsupported file type: ${mime}`);
+}
+
+function cleanupTemp(tempId?: string) {
+  if (tempId) DriveApp.getFileById(tempId).setTrashed(true);
+}
+
 function listSheets(id: string): { spreadsheetName: string; sheets: string[] } {
-  const ss = SpreadsheetApp.openById(id);
-  return {
-    spreadsheetName: ss.getName(),
-    sheets: ss.getSheets().map((s) => s.getName()),
-  };
+  const { ss, tempId } = openAsSpreadsheet(id);
+  try {
+    return { spreadsheetName: ss.getName(), sheets: ss.getSheets().map((s) => s.getName()) };
+  } finally { cleanupTemp(tempId); }
 }
 
 function getSheetData(id: string, sheetName: string): { spreadsheetName: string; sheet: string; data: unknown[][] } {
-  const ss = SpreadsheetApp.openById(id);
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
-  return {
-    spreadsheetName: ss.getName(),
-    sheet: sheetName,
-    data: sheet.getDataRange().getValues(),
-  };
+  const { ss, tempId } = openAsSpreadsheet(id);
+  try {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+    return { spreadsheetName: ss.getName(), sheet: sheetName, data: sheet.getDataRange().getValues() };
+  } finally { cleanupTemp(tempId); }
 }
 
 function writeSheet(id: string, sheetName: string, range: string, csv: string): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
+  const file = DriveApp.getFileById(id);
+  if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) throw new Error("Write is not supported for XLSX files. Use a Google Sheets file.");
   const ss = SpreadsheetApp.openById(id);
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
