@@ -2,6 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$script:PipelineInput = @($input) -join [char]10
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
@@ -108,10 +109,47 @@ function Parse-Args {
 }
 
 function Read-Stdin {
-    if ([Console]::IsInputRedirected) {
-        return [Console]::In.ReadToEnd()
-    }
+    if ($script:PipelineInput) { return $script:PipelineInput }
+    if ([Console]::IsInputRedirected) { return [Console]::In.ReadToEnd() }
     return ""
+}
+
+Add-Type -AssemblyName System.Net.Http
+
+function Follow-Redirects {
+    param([string]$Url, [hashtable]$Headers, [string]$Method = "Get", [string]$ReqBody = $null, [string]$ContentType = $null)
+    $handler = New-Object System.Net.Http.HttpClientHandler
+    $handler.AllowAutoRedirect = $false
+    $client = New-Object System.Net.Http.HttpClient($handler)
+    try {
+        for ($i = 0; $i -lt 6; $i++) {
+            $httpMethod = if ($Method -eq "Post") { [System.Net.Http.HttpMethod]::Post } else { [System.Net.Http.HttpMethod]::Get }
+            $req = New-Object System.Net.Http.HttpRequestMessage($httpMethod, $Url)
+            foreach ($k in $Headers.Keys) { $req.Headers.TryAddWithoutValidation($k, $Headers[$k]) | Out-Null }
+            if ($ReqBody -and $Method -eq "Post") {
+                $req.Content = New-Object System.Net.Http.StringContent($ReqBody, [System.Text.Encoding]::UTF8, "application/json")
+            }
+            $task = $client.SendAsync($req)
+            $task.Wait()
+            $resp = $task.Result
+            $code = [int]$resp.StatusCode
+            if ($code -in 301,302,303,307,308) {
+                $Url = [string]$resp.Headers.Location
+                if ($code -in 302, 303) { $Method = "Get"; $ReqBody = $null }
+            } elseif ($code -ge 200 -and $code -lt 300) {
+                $readTask = $resp.Content.ReadAsStringAsync()
+                $readTask.Wait()
+                return $readTask.Result
+            } else {
+                $readTask = $resp.Content.ReadAsStringAsync()
+                $readTask.Wait()
+                throw "HTTP $code : $($readTask.Result)"
+            }
+        }
+        throw "Too many redirects"
+    } finally {
+        $client.Dispose()
+    }
 }
 
 function Invoke-Api {
@@ -128,12 +166,13 @@ function Invoke-Api {
             $parts += "$k=$([uri]::EscapeDataString($Query[$k]))"
         }
         $url = "$Base`?$($parts -join '&')"
-        $resp = Invoke-RestMethod -Uri $url -Headers $headers -Method Get -MaximumRedirection 5
+        $content = Follow-Redirects -Url $url -Headers $headers
+        return $content
     } else {
         $json = $Body | ConvertTo-Json -Depth 10 -Compress
-        $resp = Invoke-RestMethod -Uri $Base -Headers $headers -Method Post -Body $json -ContentType "application/json; charset=utf-8" -MaximumRedirection 5
+        $content = Follow-Redirects -Url $Base -Headers $headers -Method Post -ReqBody $json -ContentType "application/json; charset=utf-8"
+        return $content
     }
-    return $resp
 }
 
 function Format-Output {
@@ -143,8 +182,20 @@ function Format-Output {
         exit 1
     }
     if ($Response -is [string]) {
-        try { $Response | ConvertFrom-Json | ConvertTo-Json -Depth 20 }
-        catch { $Response }
+        try {
+            $parsed = $Response | ConvertFrom-Json
+            if ($Response.TrimStart().StartsWith('[')) {
+                $items = @($parsed) | ForEach-Object { $_ | ConvertTo-Json -Depth 20 -Compress }
+                "[
+  " + (($items | ForEach-Object { ($_ | ConvertFrom-Json | ConvertTo-Json -Depth 20) -replace "
+", "
+  " }) -join ",
+  ") + "
+]"
+            } else {
+                $parsed | ConvertTo-Json -Depth 20
+            }
+        } catch { $Response }
     } else {
         $Response | ConvertTo-Json -Depth 20
     }
@@ -152,7 +203,7 @@ function Format-Output {
 
 # --- Main ---
 $action = if ($args.Count -gt 0) { $args[0] } else { "--help" }
-$remaining = if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() }
+$remaining = @(if ($args.Count -gt 1) { $args[1..($args.Count - 1)] })
 
 if ($action -in "--help", "-h", "help") { Show-Help }
 
@@ -199,7 +250,7 @@ $flags = $parsed["_flags"]
 $subaction = ""
 if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') {
     $subaction = $remaining[0]
-    $remaining = if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] } else { @() }
+    $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
     $parsed = Parse-Args $remaining
     $flags = $parsed["_flags"]
 }
@@ -281,7 +332,7 @@ switch ($action) {
             $data = [Convert]::ToBase64String($bytes)
             $isBase64 = "true"
             $mimeType = "application/octet-stream"
-        } elseif ([Console]::IsInputRedirected) {
+        } elseif ($script:PipelineInput -or [Console]::IsInputRedirected) {
             $data = Read-Stdin
             $isBase64 = ""; $mimeType = ""
         } else {
@@ -321,7 +372,7 @@ switch ($action) {
     { $_ -eq "mail" -and $subaction -eq "filter" } {
         $filterSub = if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') { $remaining[0] } else { "" }
         if ($filterSub) {
-            $remaining = if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] } else { @() }
+            $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
             $parsed = Parse-Args $remaining; $flags = $parsed["_flags"]
         }
         $body = @{

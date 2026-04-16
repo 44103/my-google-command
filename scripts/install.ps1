@@ -2,25 +2,26 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
-$InstallDir = if ($args.Count -gt 0) { $args[0] } else { Join-Path $env:LOCALAPPDATA "myg\bin" }
+$Ps1Path = Join-Path $ProjectDir "cli\myg.ps1"
 
-if (-not (Test-Path $InstallDir)) { New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null }
+# Add function to PowerShell profile
+$profileDir = Split-Path -Parent $PROFILE
+if (-not (Test-Path $profileDir)) { New-Item -ItemType Directory -Path $profileDir -Force | Out-Null }
+if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
 
-# Create myg.cmd wrapper that points to the project's ps1
-$cmdContent = "@powershell -ExecutionPolicy Bypass -File `"$ProjectDir\cli\myg.ps1`" %*"
-Set-Content -Path (Join-Path $InstallDir "myg.cmd") -Value $cmdContent -Encoding ASCII
-
-Write-Host "Installed myg -> $InstallDir\myg.cmd" -ForegroundColor Green
-
-# Check PATH
-$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($userPath -notlike "*$InstallDir*") {
-    $reply = Read-Host "Add $InstallDir to your PATH? (y/n)"
-    if ($reply -eq "y") {
-        [Environment]::SetEnvironmentVariable("Path", "$InstallDir;$userPath", "User")
-        Write-Host "PATH updated. Restart your terminal to take effect." -ForegroundColor Green
-    } else {
-        Write-Host "`nAdd this to your PATH manually:" -ForegroundColor Yellow
-        Write-Host "  $InstallDir"
-    }
+$marker = "# myg-cli"
+$funcLine = "$marker`nfunction myg { `$input | & '$Ps1Path' @args }"
+$profileContent = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
+if ($profileContent -and $profileContent.Contains($marker)) {
+    # Update existing entry
+    $profileContent = $profileContent -replace "(?m)$marker\r?\n.*myg.*", $funcLine
+    Set-Content -Path $PROFILE -Value $profileContent -NoNewline
+} else {
+    Add-Content -Path $PROFILE -Value "`n$funcLine"
 }
+
+# Load into current session
+Invoke-Expression "function global:myg { `$input | & '$Ps1Path' @args }"
+
+Write-Host "Installed myg (PowerShell function) -> $PROFILE" -ForegroundColor Green
+Write-Host "Run ``myg auth`` to get started." -ForegroundColor Cyan
