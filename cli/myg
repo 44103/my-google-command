@@ -71,6 +71,7 @@ Actions:
   tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
+  task create id=<TASKLIST_ID> title="TITLE" parent=<TASK_ID>  Create subtask
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
@@ -134,6 +135,7 @@ Examples:
   myg task create id=<TASKLIST_ID> title="Buy milk"
   myg task create id=<TASKLIST_ID> title="Report" due=2026-04-10
   myg task create id=<TASKLIST_ID> title="Report" due=2026-04-10 notes="Details here"
+  myg task create id=<TASKLIST_ID> title="Subtask" parent=<TASK_ID>
   myg task update id=<TASKLIST_ID> task=<TASK_ID> title="Updated title"
   myg task update id=<TASKLIST_ID> task=<TASK_ID> notes="Add description"
   myg task delete id=<TASKLIST_ID> task=<TASK_ID>
@@ -631,6 +633,7 @@ elif [[ -n "$task_subaction" ]]; then
   t_due=""
   t_task=""
   t_notes=""
+  t_parent=""
   for arg in "$@"; do
     case "$arg" in
       id=*)    t_id="${arg#id=}" ;;
@@ -638,6 +641,7 @@ elif [[ -n "$task_subaction" ]]; then
       due=*)   t_due="${arg#due=}" ;;
       task=*)  t_task="${arg#task=}" ;;
       notes=*) t_notes="${arg#notes=}" ;;
+      parent=*) t_parent="${arg#parent=}" ;;
     esac
   done
 
@@ -648,7 +652,8 @@ elif [[ -n "$task_subaction" ]]; then
     --arg due "$t_due" \
     --arg task "$t_task" \
     --arg notes "$t_notes" \
-    '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task, notes: $notes}')
+    --arg parent "$t_parent" \
+    '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task, notes: $notes, parent: $parent}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

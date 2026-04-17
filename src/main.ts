@@ -170,7 +170,7 @@ function doPost(
         result = createSpreadsheet(body.name);
         break;
       case "task:create":
-        result = createTask(body.id, body.title, body.due, body.notes);
+        result = createTask(body.id, body.title, body.due, body.notes, body.parent);
         break;
       case "tasklist:create":
         result = createTaskList(body.title);

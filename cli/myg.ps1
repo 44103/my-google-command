@@ -75,6 +75,7 @@ Actions:
   tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
+  task create id=<TASKLIST_ID> title="TITLE" parent=<TASK_ID>  Create subtask
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
@@ -437,6 +438,7 @@ switch ($action) {
         $body = @{
             action = "task:$subaction"; id = Get-Val "id"; title = Get-Val "title"
             due = Get-Val "due"; task = Get-Val "task"; notes = Get-Val "notes"
+            parent = Get-Val "parent"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

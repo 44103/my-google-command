@@ -28,12 +28,14 @@ function listTasks(taskListId: string): { id: string; title: string; status: str
   }));
 }
 
-function createTask(taskListId: string, title: string, due?: string, notes?: string): { id: string; title: string; status: string; due: string | null; notes: string | null } {
+function createTask(taskListId: string, title: string, due?: string, notes?: string, parent?: string): { id: string; title: string; status: string; due: string | null; notes: string | null; parent: string | null } {
   const task: GoogleAppsScript.Tasks.Schema.Task = { title };
   if (due) task.due = new Date(due).toISOString();
   if (notes) task.notes = notes;
-  const created = Tasks.Tasks!.insert(task, taskListId);
-  return { id: created.id!, title: created.title!, status: created.status!, due: created.due || null, notes: created.notes || null };
+  const opts: { parent?: string } = {};
+  if (parent) opts.parent = parent;
+  const created = Tasks.Tasks!.insert(task, taskListId, opts);
+  return { id: created.id!, title: created.title!, status: created.status!, due: created.due || null, notes: created.notes || null, parent: (created as any).parent || null };
 }
 
 function updateTask(taskListId: string, taskId: string, fields: { title?: string; due?: string; notes?: string }): { id: string; title: string; status: string; due: string | null; notes: string | null } {
