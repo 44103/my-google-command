@@ -242,6 +242,9 @@ function doPost(
       case "file:move":
         result = moveFile(body.id, body.folder);
         break;
+      case "file:rename":
+        result = renameFile(body.id, body.name);
+        break;
       case "file:copy":
         result = copyFile(body.id, body.folder, body.name);
         break;
@@ -289,6 +292,7 @@ function doPost(
             "mail:filter:delete",
             "file:upload",
             "file:move",
+            "file:rename",
             "file:copy",
             "slide:create",
             "slide:addpage",

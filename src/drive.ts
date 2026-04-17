@@ -32,6 +32,12 @@ function uploadFile(folderId: string, name: string, data: string, isBase64?: boo
   return { id: file.getId(), name: file.getName(), folder: folder.getName() };
 }
 
+function renameFile(fileId: string, name: string): { id: string; name: string } {
+  const file = DriveApp.getFileById(fileId);
+  file.setName(name);
+  return { id: file.getId(), name: file.getName() };
+}
+
 function moveFile(fileId: string, destFolderId: string): { id: string; name: string; folder: string } {
   const file = DriveApp.getFileById(fileId);
   const dest = DriveApp.getFolderById(destFolderId);

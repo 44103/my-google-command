@@ -49,6 +49,7 @@ Actions:
   file id=<FILE_ID>               Download file content
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
+  file rename id=<FILE_ID> name=<NEW_NAME>  Rename file/folder
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
@@ -269,7 +270,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move|copy|history|diff) file_subaction="$1"; shift ;;
+    upload|move|copy|history|diff|rename) file_subaction="$1"; shift ;;
   esac
 fi
 
