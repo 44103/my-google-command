@@ -54,6 +54,7 @@ Actions:
   file upload folder=<FOLDER_ID> name=<NAME> file=<PATH>  Upload file
   file move id=<FILE_ID> folder=<FOLDER_ID>  Move file
   file rename id=<FILE_ID> name=<NEW_NAME>  Rename file/folder
+  file shortcut id=<FILE_ID> [folder=<FOLDER_ID>]  Create shortcut
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
@@ -349,7 +350,7 @@ switch ($action) {
     }
 
     # --- File move/copy (POST) ---
-    { $_ -eq "file" -and $subaction -in "move", "copy", "rename" } {
+    { $_ -eq "file" -and $subaction -in "move", "copy", "rename", "shortcut" } {
         $body = @{
             action = "file:$subaction"; id = Get-Val "id"
             folder = Get-Val "folder"; name = Get-Val "name"

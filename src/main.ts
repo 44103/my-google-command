@@ -245,6 +245,9 @@ function doPost(
       case "file:rename":
         result = renameFile(body.id, body.name);
         break;
+      case "file:shortcut":
+        result = createShortcut(body.id, body.folder);
+        break;
       case "file:copy":
         result = copyFile(body.id, body.folder, body.name);
         break;
@@ -293,6 +296,7 @@ function doPost(
             "file:upload",
             "file:move",
             "file:rename",
+            "file:shortcut",
             "file:copy",
             "slide:create",
             "slide:addpage",

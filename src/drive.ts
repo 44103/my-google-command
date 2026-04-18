@@ -32,6 +32,18 @@ function uploadFile(folderId: string, name: string, data: string, isBase64?: boo
   return { id: file.getId(), name: file.getName(), folder: folder.getName() };
 }
 
+function createShortcut(targetId: string, folderId?: string): { id: string; name: string; folder: string } {
+  const target = DriveApp.getFileById(targetId);
+  const folder = folderId ? DriveApp.getFolderById(folderId) : target.getParents().next();
+  const res = Drive.Files!.create({
+    name: target.getName(),
+    mimeType: "application/vnd.google-apps.shortcut",
+    shortcutDetails: { targetId },
+    parents: [folder.getId()],
+  });
+  return { id: res.id!, name: res.name!, folder: folder.getName() };
+}
+
 function renameFile(fileId: string, name: string): { id: string; name: string } {
   const file = DriveApp.getFileById(fileId);
   file.setName(name);
