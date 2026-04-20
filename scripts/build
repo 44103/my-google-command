@@ -18,6 +18,9 @@ find "$PROJECT_DIR/dist" -mindepth 2 -type f | while read -r file; do
 done
 find "$PROJECT_DIR/dist" -mindepth 1 -type d -empty -delete
 
+# Copy HTML files to dist/
+find "$PROJECT_DIR/src" -name '*.html' -exec cp {} "$PROJECT_DIR/dist/" \;
+
 node -e "
   const f = require('$PROJECT_DIR/src/appsscript.json');
   f.webapp.access = process.env.GW_ACCESS || 'DOMAIN';

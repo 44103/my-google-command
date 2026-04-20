@@ -10,15 +10,9 @@ function doGet(
   const action = e.parameter.action;
   try {
     if (action === "auth") {
-      const token = ScriptApp.getOAuthToken();
-      return HtmlService.createHtmlOutput(
-        `
-        <style>body{font-family:sans-serif;max-width:600px;margin:40px auto}pre{background:#f5f5f5;padding:12px;word-break:break-all;white-space:pre-wrap}button{padding:8px 16px;font-size:14px;cursor:pointer}</style>
-        <h2>Access Token</h2>
-        <pre id="t">${token}</pre>
-        <button onclick="navigator.clipboard.writeText(document.getElementById('t').textContent).then(()=>{this.textContent='✓ Copied!';this.disabled=true})">📋 Copy Token</button>
-      `,
-      ).setTitle("GAS Auth");
+      const tmpl = HtmlService.createTemplateFromFile("auth");
+      tmpl.token = ScriptApp.getOAuthToken();
+      return tmpl.evaluate().setTitle("GAS Auth");
     }
 
     let result: unknown;
