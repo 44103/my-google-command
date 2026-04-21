@@ -28,6 +28,16 @@ function listTasks(taskListId: string): { id: string; title: string; status: str
   }));
 }
 
+function listCompletedTasks(taskListId: string): { id: string; title: string; status: string; due: string | null }[] {
+  const res = Tasks.Tasks!.list(taskListId, { showCompleted: true, showHidden: true });
+  return (res.items || []).filter(t => t.status === "completed").map(t => ({
+    id: t.id!,
+    title: t.title!,
+    status: t.status!,
+    due: t.due || null,
+  }));
+}
+
 function createTask(taskListId: string, title: string, due?: string, notes?: string, parent?: string): { id: string; title: string; status: string; due: string | null; notes: string | null; parent: string | null } {
   const task: GoogleAppsScript.Tasks.Schema.Task = { title };
   if (due) task.due = new Date(due).toISOString();

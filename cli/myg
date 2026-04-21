@@ -72,6 +72,7 @@ Actions:
   tasklist update id=<TASKLIST_ID> title="NEW TITLE"  Rename task list
   tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
+  tasks completed id=<TASKLIST_ID>  List completed tasks
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
   task create id=<TASKLIST_ID> title="TITLE" parent=<TASK_ID>  Create subtask
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
@@ -308,6 +309,14 @@ if [[ "$action" == "files" && $# -gt 0 ]]; then
   esac
 fi
 
+# tasks subcommands
+tasks_subaction=""
+if [[ "$action" == "tasks" && $# -gt 0 ]]; then
+  case "$1" in
+    completed) tasks_subaction="completed"; shift ;;
+  esac
+fi
+
 # event subcommands (create) use POST
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
@@ -316,7 +325,16 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$files_subaction" ]]; then
+if [[ -n "$tasks_subaction" ]]; then
+  tc_id=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*) tc_id="${arg#id=}" ;;
+    esac
+  done
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=tasks:completed" --data-urlencode "id=${tc_id}" "$BASE")
+elif [[ -n "$files_subaction" ]]; then
   fs_q=""
   fs_max=""
   for arg in "$@"; do

@@ -76,6 +76,7 @@ Actions:
   tasklist update id=<TASKLIST_ID> title="NEW TITLE"  Rename task list
   tasklist delete id=<TASKLIST_ID>  Delete task list
   tasks id=<TASKLIST_ID>        List tasks in a task list
+  tasks completed id=<TASKLIST_ID>  List completed tasks
   task create id=<TASKLIST_ID> title="TITLE" [due=YYYY-MM-DD] [notes="..."]  Create task
   task create id=<TASKLIST_ID> title="TITLE" parent=<TASK_ID>  Create subtask
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
@@ -265,6 +266,14 @@ switch ($action) {
     { $_ -eq "files" -and $subaction -eq "search" } {
         Format-Output (Invoke-Api -Method GET -Query @{
             action = "files:search"; q = (Get-Val "q"); max = (Get-Val "max" "20")
+        })
+        break
+    }
+
+    # --- Tasks completed (GET) ---
+    { $_ -eq "tasks" -and $subaction -eq "completed" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "tasks:completed"; id = (Get-Val "id")
         })
         break
     }

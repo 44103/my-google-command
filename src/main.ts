@@ -44,6 +44,9 @@ function doGet(
       case "tasks":
         result = listTasks(e.parameter.id);
         break;
+      case "tasks:completed":
+        result = listCompletedTasks(e.parameter.id);
+        break;
       case "calendars":
         result = listCalendars();
         break;
