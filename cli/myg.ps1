@@ -38,7 +38,17 @@ Actions:
   doc create name="TITLE"       Create new document (stdin for body)
   doc append id=<ID or URL>     Append text from stdin
   doc overwrite id=<ID or URL>  Overwrite with text from stdin
-    Note: Add format=markdown to convert Markdown with styling
+    Options: format=markdown  Convert Markdown with styling
+             tab=<TAB_ID>     Target a specific tab
+  doc tabs id=<ID or URL>       List tabs in a document
+  doc addtab id=<ID or URL> name="TITLE" [index=<N>] [parent=<TAB_ID>]  Add tab
+  doc renametab id=<ID or URL> tab=<TAB_ID> name="NEW"  Rename tab
+  doc movetab id=<ID or URL> tab=<TAB_ID> index=<N> [parent=<TAB_ID>]  Move/nest tab
+    Smart chips (in text or markdown):
+      {{ DATE }}              Today's date chip
+      {{ DATE:YYYY-MM-DD }}   Specific date chip
+      {{ PERSON:email }}      Person mention chip
+      {{ LINK:URL }}          Rich link chip
   mails [q=<QUERY>] [max=<N>]  List emails (default: inbox, 20)
   mail id=<MESSAGE_ID>          Get email content
   mail draft to=<ADDR> subject="..." (stdin for body)  Create draft

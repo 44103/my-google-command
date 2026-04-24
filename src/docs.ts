@@ -53,6 +53,7 @@ function appendDoc(id: string, text: string, format?: string, tab?: string): { n
     body.appendParagraph(text);
   }
   doc.saveAndClose();
+  replacePlaceholders(id, tab);
   const updated = DocumentApp.openById(id);
   const updatedBody = tab ? getTabBody(updated, tab) : updated.getBody();
   return { name: updated.getName(), body: updatedBody.getText() };
@@ -78,9 +79,92 @@ function overwriteDoc(id: string, text: string, format?: string, tab?: string): 
   }
 
   doc.saveAndClose();
+  replacePlaceholders(id, tab);
   const updated = DocumentApp.openById(id);
   const updatedBody = tab ? getTabBody(updated, tab) : updated.getBody();
   return { name: updated.getName(), body: updatedBody.getText() };
+}
+
+function replacePlaceholders(id: string, tab?: string): void {
+  const docData = Docs.Documents!.get(id, { includeTabsContent: true } as any) as any;
+  const targetTab = tab
+    ? docData.tabs.find((t: any) => t.tabProperties.tabId === tab)
+    : docData.tabs[0];
+  if (!targetTab) return;
+  const tabId = targetTab.tabProperties.tabId;
+  const content = targetTab.documentTab.body.content;
+
+  // Collect all text runs including inside tables
+  const runs: { start: number; text: string }[] = [];
+  collectTextRuns(content, runs);
+
+  // Build concatenated text with index mapping
+  let fullText = "";
+  const indexMap: number[] = [];
+  for (const r of runs) {
+    for (let c = 0; c < r.text.length; c++) {
+      indexMap.push(r.start + c);
+    }
+    fullText += r.text;
+  }
+
+  const pattern = /\{\{\s*(DATE(?::(\d{4}-\d{2}-\d{2}))?|PERSON:([^\s}]+)|LINK:(https?:\/\/[^\s}]+))\s*\}\}/g;
+  const matches: { start: number; end: number; type: string; value: string }[] = [];
+  let m;
+  while ((m = pattern.exec(fullText)) !== null) {
+    let type: string, value: string;
+    if (m[4]) { type = "link"; value = m[4]; }
+    else if (m[3]) { type = "person"; value = m[3]; }
+    else { type = "date"; value = m[2] || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"); }
+    matches.push({ start: indexMap[m.index], end: indexMap[m.index + m[0].length - 1] + 1, type, value });
+  }
+
+  if (matches.length === 0) return;
+
+  const requests: any[] = [];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const m = matches[i];
+    requests.push({ deleteContentRange: { range: { startIndex: m.start, endIndex: m.end, tabId } } });
+    if (m.type === "date") {
+      requests.push({
+        insertDate: {
+          dateElementProperties: { timestamp: m.value + "T00:00:00Z" },
+          location: { index: m.start, tabId },
+        },
+      });
+    } else if (m.type === "person") {
+      requests.push({
+        insertPerson: {
+          personProperties: { email: m.value },
+          location: { index: m.start, tabId },
+        },
+      });
+    } else if (m.type === "link") {
+      requests.push({
+        insertRichLink: {
+          richLinkProperties: { uri: m.value },
+          location: { index: m.start, tabId },
+        },
+      });
+    }
+  }
+  Docs.Documents!.batchUpdate({ requests }, id);
+}
+
+function collectTextRuns(elements: any[], runs: { start: number; text: string }[]): void {
+  for (const el of elements) {
+    if (el.paragraph) {
+      for (const pe of el.paragraph.elements) {
+        if (pe.textRun) runs.push({ start: pe.startIndex, text: pe.textRun.content });
+      }
+    } else if (el.table) {
+      for (const row of el.table.tableRows) {
+        for (const cell of row.tableCells) {
+          collectTextRuns(cell.content, runs);
+        }
+      }
+    }
+  }
 }
 
 function appendDocTab(id: string, tabId: string, text: string): { name: string; body: string } {

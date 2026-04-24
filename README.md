@@ -233,6 +233,27 @@ Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.
 
 `format=markdown` を付けると、Markdown を Google Docs のスタイル（見出し、リスト、コードブロック、テーブル、リンク等）に変換して書き込みます。
 
+### スマートチップ（プレースホルダー）
+
+Docs への書き込み時に、以下のプレースホルダーを使うと Google Docs のスマートチップに自動変換されます。
+
+| プレースホルダー | 変換先 | 例 |
+|----------------|--------|-----|
+| `{{ DATE }}` | 当日の日付チップ | `会議日: {{ DATE }}` |
+| `{{ DATE:YYYY-MM-DD }}` | 指定日の日付チップ | `期限: {{ DATE:2026-05-01 }}` |
+| `{{ PERSON:メールアドレス }}` | 参加者チップ | `担当: {{ PERSON:user@example.com }}` |
+| `{{ LINK:URL }}` | リッチリンク（スマートチップ） | `参照: {{ LINK:https://docs.google.com/... }}` |
+
+`format=markdown` でもプレーンテキストでも、`tab=` 指定でも動作します。
+
+```bash
+# 日付チップ付きで書き込み
+echo "期限: {{ DATE:2026-05-01 }}" | myg doc append id=<ID> format=markdown
+
+# 特定タブに参加者チップ付きで書き込み
+echo "担当: {{ PERSON:user@example.com }}" | myg doc append id=<ID> tab=<TAB_ID>
+```
+
 ### シンタックスハイライト
 
 Markdown のコードブロックに言語を指定すると、Google Docs 上でシンタックスハイライトが適用されます。
