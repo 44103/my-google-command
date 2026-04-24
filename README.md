@@ -246,10 +246,12 @@ Docs への書き込み時に、以下のプレースホルダーを使うと Go
 |----------------|--------|-----|
 | `{{ DATE }}` | 当日の日付チップ | `会議日: {{ DATE }}` |
 | `{{ DATE:YYYY-MM-DD }}` | 指定日の日付チップ | `期限: {{ DATE:2026-05-01 }}` |
+| `{{ DATE:YYYY-MM-DD:locale }}` | locale 指定の日付チップ | `Due: {{ DATE:2026-05-01:en }}` |
 | `{{ PERSON:メールアドレス }}` | 参加者チップ | `担当: {{ PERSON:user@example.com }}` |
 | `{{ LINK:URL }}` | リッチリンク（スマートチップ） | `参照: {{ LINK:https://docs.google.com/... }}` |
 
 `format=markdown` でもプレーンテキストでも、`tab=` 指定でも動作します。
+日付チップのデフォルト locale は `en`（英語）です。
 
 ```bash
 # 日付チップ付きで書き込み

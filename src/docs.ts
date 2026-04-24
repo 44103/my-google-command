@@ -108,15 +108,15 @@ function replacePlaceholders(id: string, tab?: string): void {
     fullText += r.text;
   }
 
-  const pattern = /\{\{\s*(DATE(?::(\d{4}-\d{2}-\d{2}))?|PERSON:([^\s}]+)|LINK:(https?:\/\/[^\s}]+))\s*\}\}/g;
-  const matches: { start: number; end: number; type: string; value: string }[] = [];
+  const pattern = /\{\{\s*(DATE(?::(\d{4}-\d{2}-\d{2}))?(?::([a-z]{2}))?|PERSON:([^\s}]+)|LINK:(https?:\/\/[^\s}]+))\s*\}\}/g;
+  const matches: { start: number; end: number; type: string; value: string; locale: string }[] = [];
   let m;
   while ((m = pattern.exec(fullText)) !== null) {
-    let type: string, value: string;
-    if (m[4]) { type = "link"; value = m[4]; }
-    else if (m[3]) { type = "person"; value = m[3]; }
-    else { type = "date"; value = m[2] || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"); }
-    matches.push({ start: indexMap[m.index], end: indexMap[m.index + m[0].length - 1] + 1, type, value });
+    let type: string, value: string, locale = "ja";
+    if (m[5]) { type = "link"; value = m[5]; }
+    else if (m[4]) { type = "person"; value = m[4]; }
+    else { type = "date"; value = m[2] || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"); locale = m[3] || "en"; }
+    matches.push({ start: indexMap[m.index], end: indexMap[m.index + m[0].length - 1] + 1, type, value, locale });
   }
 
   if (matches.length === 0) return;
@@ -128,7 +128,7 @@ function replacePlaceholders(id: string, tab?: string): void {
     if (m.type === "date") {
       requests.push({
         insertDate: {
-          dateElementProperties: { timestamp: m.value + "T00:00:00Z" },
+          dateElementProperties: { timestamp: m.value + "T00:00:00Z", locale: m.locale },
           location: { index: m.start, tabId },
         },
       });

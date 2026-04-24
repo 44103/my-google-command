@@ -43,6 +43,7 @@ Actions:
     Smart chips (in text or markdown):
       {{ DATE }}              Today's date chip
       {{ DATE:YYYY-MM-DD }}   Specific date chip
+      {{ DATE:YYYY-MM-DD:locale }}  Date chip with locale (default: en)
       {{ PERSON:email }}      Person mention chip
       {{ LINK:URL }}          Rich link chip
   mails [q=<QUERY>] [max=<N>]  List emails (default: inbox, 20)
