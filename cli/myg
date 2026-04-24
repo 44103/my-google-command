@@ -14,7 +14,7 @@ SCRIPT_DIR="$(resolve_path "$0")"
 source "$SCRIPT_DIR/../.env"
 
 TOKEN_FILE="$SCRIPT_DIR/../.token"
-BASE="https://script.google.com/macros/s/${DEPLOY_ID}/exec"
+BASE="https://script.google.com/a/macros/lifull.com/s/${DEPLOY_ID}/exec"
 
 show_help() {
   cat <<'EOF'
