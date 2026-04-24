@@ -160,6 +160,9 @@ function doPost(
       case "doc:renametab":
         result = renameDocTab(resolveId(body), body.tab, body.name);
         break;
+      case "doc:copytab":
+        result = copyDocTab(resolveId(body), body.tab, body.name, body.index && body.index !== "" ? parseInt(body.index) : undefined);
+        break;
       case "doc:movetab":
         result = moveDocTab(resolveId(body), body.tab, parseInt(body.index), body.parent || undefined);
         break;

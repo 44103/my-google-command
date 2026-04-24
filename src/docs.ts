@@ -234,3 +234,111 @@ function moveDocTab(id: string, tabId: string, index: number, parentTabId?: stri
   );
   return { tabId, index, parentTabId: parentTabId || "" };
 }
+
+function copyDocTab(id: string, srcTabId: string, name: string, index?: number): { tabId: string; title: string } {
+  // Create new tab
+  const tabProperties: any = { title: name };
+  if (index !== undefined) tabProperties.index = index;
+  const res = Docs.Documents!.batchUpdate(
+    { requests: [{ addDocumentTab: { tabProperties } } as any] },
+    id,
+  );
+  const newTabId = (res.replies![0] as any).addDocumentTab.tabProperties.tabId;
+
+  // Copy content from source tab using DocumentApp (preserves styles)
+  let doc = DocumentApp.openById(id);
+  doc.saveAndClose();
+  doc = DocumentApp.openById(id);
+
+  const srcBody = getTabBody(doc, srcTabId);
+  const destBody = getTabBody(doc, newTabId);
+
+  for (let i = 0; i < srcBody.getNumChildren(); i++) {
+    const el = srcBody.getChild(i);
+    const type = el.getType();
+    if (type === DocumentApp.ElementType.PARAGRAPH) {
+      const dest = i === 0 ? destBody.getChild(0).asParagraph() : destBody.appendParagraph("");
+      copyParagraph(el.asParagraph(), dest);
+    } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+      const dest = destBody.appendListItem("");
+      copyListItem(el.asListItem(), dest);
+    } else if (type === DocumentApp.ElementType.TABLE) {
+      copyTable(el.asTable(), destBody);
+    }
+  }
+
+  doc.saveAndClose();
+  replacePlaceholders(id, newTabId);
+  return { tabId: newTabId, title: name };
+}
+
+function copyParagraph(src: GoogleAppsScript.Document.Paragraph, dest: GoogleAppsScript.Document.Paragraph): void {
+  dest.setHeading(src.getHeading());
+  dest.setAlignment(src.getAlignment());
+  copyTextContent(src, dest);
+}
+
+function copyListItem(src: GoogleAppsScript.Document.ListItem, dest: GoogleAppsScript.Document.ListItem): void {
+  dest.setGlyphType(src.getGlyphType());
+  dest.setNestingLevel(src.getNestingLevel());
+  dest.setAlignment(src.getAlignment());
+  copyTextContent(src, dest);
+}
+
+function copyTextContent(src: GoogleAppsScript.Document.Paragraph | GoogleAppsScript.Document.ListItem, dest: GoogleAppsScript.Document.Paragraph | GoogleAppsScript.Document.ListItem): void {
+  dest.clear();
+  for (let i = 0; i < src.getNumChildren(); i++) {
+    const child = src.getChild(i);
+    if (child.getType() === DocumentApp.ElementType.TEXT) {
+      const text = child.asText();
+      const content = text.getText();
+      if (content.length === 0) continue;
+      const appended = dest.appendText(content);
+      for (let c = 0; c < content.length; c++) {
+        appended.setBold(c, c, text.isBold(c));
+        appended.setItalic(c, c, text.isItalic(c));
+        appended.setUnderline(c, c, text.isUnderline(c));
+        appended.setStrikethrough(c, c, text.isStrikethrough(c));
+        appended.setFontSize(c, c, text.getFontSize(c));
+        const fg = text.getForegroundColor(c);
+        if (fg) appended.setForegroundColor(c, c, fg);
+        const bg = text.getBackgroundColor(c);
+        if (bg) appended.setBackgroundColor(c, c, bg);
+        const ff = text.getFontFamily(c);
+        if (ff) appended.setFontFamily(c, c, ff);
+        const url = text.getLinkUrl(c);
+        if (url) appended.setLinkUrl(c, c, url);
+      }
+    } else if (child.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
+      const img = child.asInlineImage();
+      dest.appendInlineImage(img.getBlob()).setWidth(img.getWidth()).setHeight(img.getHeight());
+    } else if (child.getType() === DocumentApp.ElementType.HORIZONTAL_RULE) {
+      dest.appendHorizontalRule();
+    }
+  }
+}
+
+function copyTable(src: GoogleAppsScript.Document.Table, body: GoogleAppsScript.Document.Body): void {
+  const cells: string[][] = [];
+  for (let r = 0; r < src.getNumRows(); r++) {
+    const row: string[] = [];
+    for (let c = 0; c < src.getRow(r).getNumCells(); c++) row.push("");
+    cells.push(row);
+  }
+  const table = body.appendTable(cells);
+  for (let r = 0; r < src.getNumRows(); r++) {
+    const srcRow = src.getRow(r);
+    const destRow = table.getRow(r);
+    for (let c = 0; c < srcRow.getNumCells(); c++) {
+      const srcCell = srcRow.getCell(c);
+      const destCell = destRow.getCell(c);
+      for (let p = 0; p < srcCell.getNumChildren(); p++) {
+        const el = srcCell.getChild(p);
+        if (el.getType() === DocumentApp.ElementType.PARAGRAPH) {
+          const dest = p === 0 ? destCell.getChild(0).asParagraph() : destCell.appendParagraph("");
+          copyParagraph(el.asParagraph(), dest);
+        }
+      }
+    }
+  }
+}

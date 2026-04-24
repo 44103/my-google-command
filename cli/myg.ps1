@@ -44,6 +44,7 @@ Actions:
   doc addtab id=<ID or URL> name="TITLE" [index=<N>] [parent=<TAB_ID>]  Add tab
   doc renametab id=<ID or URL> tab=<TAB_ID> name="NEW"  Rename tab
   doc movetab id=<ID or URL> tab=<TAB_ID> index=<N> [parent=<TAB_ID>]  Move/nest tab
+  doc copytab id=<ID or URL> tab=<TAB_ID> name="NEW" [index=<N>]  Copy tab with styles
     Smart chips (in text or markdown):
       {{ DATE }}              Today's date chip
       {{ DATE:YYYY-MM-DD }}   Specific date chip
