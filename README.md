@@ -81,6 +81,11 @@ Copy-Item .env.example .env
 .\scripts\install.ps1
 ```
 
+> 実行ポリシーのエラーが出る場合（Google Drive 上で作業している場合など）:
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File ".\scripts\install.ps1"
+> ```
+
 `%LOCALAPPDATA%\myg\bin` に `myg.cmd` がインストールされます。
 PATH への追加を確認されるので、`y` を入力してください（ターミナルの再起動が必要です）。
 

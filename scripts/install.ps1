@@ -4,6 +4,9 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 $Ps1Path = Join-Path $ProjectDir "cli\myg.ps1"
 
+# Unblock script files downloaded via Google Drive / internet
+Get-ChildItem -Path $ProjectDir -Filter "*.ps1" -Recurse | Unblock-File -ErrorAction SilentlyContinue
+
 # Add function to PowerShell profile
 $profileDir = Split-Path -Parent $PROFILE
 if (-not (Test-Path $profileDir)) { New-Item -ItemType Directory -Path $profileDir -Force | Out-Null }
