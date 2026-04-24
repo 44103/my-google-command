@@ -213,7 +213,8 @@ curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}" --data-urlencode 
 doc_subaction=""
 if [[ "$action" == "doc" && $# -gt 0 ]]; then
   case "$1" in
-    create|append|overwrite) doc_subaction="$1"; shift ;;
+    create|append|overwrite|addtab|renametab|movetab) doc_subaction="$1"; shift ;;
+    tabs) doc_subaction="tabs"; shift ;;
   esac
 fi
 
@@ -763,30 +764,44 @@ elif [[ -n "$doc_subaction" ]]; then
   doc_id=""
   doc_name=""
   doc_format=""
+  doc_tab=""
+  doc_index=""
+  doc_parent=""
   for arg in "$@"; do
     case "$arg" in
       id=*)     doc_id="${arg#id=}" ;;
       name=*)   doc_name="${arg#name=}" ;;
       format=*) doc_format="${arg#format=}" ;;
+      tab=*)    doc_tab="${arg#tab=}" ;;
+      index=*)  doc_index="${arg#index=}" ;;
+      parent=*) doc_parent="${arg#parent=}" ;;
     esac
   done
 
-  stdin_text=""
-  if [[ ! -t 0 ]]; then
-    stdin_text=$(cat)
+  if [[ "$doc_subaction" == "tabs" ]]; then
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=doc:tabs" --data-urlencode "id=${doc_id}" "$BASE")
+  else
+    stdin_text=""
+    if [[ ! -t 0 ]]; then
+      stdin_text=$(cat)
+    fi
+
+    json_body=$(jq -n \
+      --arg sub "$doc_subaction" \
+      --arg id "$doc_id" \
+      --arg name "$doc_name" \
+      --arg text "$stdin_text" \
+      --arg format "$doc_format" \
+      --arg tab "$doc_tab" \
+      --arg index "$doc_index" \
+      --arg parent "$doc_parent" \
+      '{action: ("doc:" + $sub), id: $id, name: $name, text: $text, format: $format, tab: $tab, index: $index, parent: $parent}')
+
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
   fi
-
-  json_body=$(jq -n \
-    --arg sub "$doc_subaction" \
-    --arg id "$doc_id" \
-    --arg name "$doc_name" \
-    --arg text "$stdin_text" \
-    --arg format "$doc_format" \
-    '{action: ("doc:" + $sub), id: $id, name: $name, text: $text, format: $format}')
-
-  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "$json_body" "$BASE")
 else
   for arg in "$@"; do
     curl_args+=(--data-urlencode "$arg")

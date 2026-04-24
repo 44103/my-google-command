@@ -32,6 +32,9 @@ function doGet(
       case "doc":
         result = getDocContent(resolveId(e.parameter));
         break;
+      case "doc:tabs":
+        result = listDocTabs(resolveId(e.parameter));
+        break;
       case "mails":
         result = listMails(e.parameter.q, e.parameter.max);
         break;
@@ -151,11 +154,20 @@ function doPost(
       case "doc:create":
         result = createDoc(body.name, body.text, body.format);
         break;
+      case "doc:addtab":
+        result = addDocTab(resolveId(body), body.name, body.index && body.index !== "" ? parseInt(body.index) : undefined, body.parent || undefined);
+        break;
+      case "doc:renametab":
+        result = renameDocTab(resolveId(body), body.tab, body.name);
+        break;
+      case "doc:movetab":
+        result = moveDocTab(resolveId(body), body.tab, parseInt(body.index), body.parent || undefined);
+        break;
       case "doc:append":
-        result = appendDoc(resolveId(body), body.text, body.format);
+        result = appendDoc(resolveId(body), body.text, body.format, body.tab);
         break;
       case "doc:overwrite":
-        result = overwriteDoc(resolveId(body), body.text, body.format);
+        result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
         break;
       case "sheet:write":
         result = writeSheet(resolveId(body), body.name, body.range, body.text);
