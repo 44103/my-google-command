@@ -118,14 +118,16 @@ interface InlineSegment {
 
 function parseInlineStyles(text: string): InlineSegment[] {
   const segments: InlineSegment[] = [];
-  // Match **bold**, `code`, [label](url), or plain text
-  const re = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|([^*`\[]+|[*`\[])/g;
+  const re = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
   let m;
   while ((m = re.exec(text)) !== null) {
+    if (m.index > last) segments.push({ text: text.slice(last, m.index) });
     if (m[1] !== undefined) segments.push({ text: m[1], bold: true });
     else if (m[2] !== undefined) segments.push({ text: m[2], code: true });
     else if (m[3] !== undefined) segments.push({ text: m[3], link: m[4] });
-    else if (m[5] !== undefined) segments.push({ text: m[5] });
+    last = m.index + m[0].length;
   }
+  if (last < text.length) segments.push({ text: text.slice(last) });
   return segments;
 }

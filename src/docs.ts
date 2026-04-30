@@ -50,7 +50,8 @@ function appendDoc(id: string, text: string, format?: string, tab?: string): { n
   if (format === "markdown") {
     writeMarkdownToBody(body, text);
   } else {
-    body.appendParagraph(text);
+    const p = body.appendParagraph(text);
+    applyDocInlineStyles(p);
   }
   doc.saveAndClose();
   replacePlaceholders(id, tab);
@@ -71,7 +72,8 @@ function overwriteDoc(id: string, text: string, format?: string, tab?: string): 
   if (format === "markdown") {
     writeMarkdownToBody(body, text);
   } else {
-    body.appendParagraph(text);
+    const p = body.appendParagraph(text);
+    applyDocInlineStyles(p);
   }
   // Remove old elements (iterate backwards to keep indices stable)
   for (let i = oldCount - 1; i >= 0; i--) {

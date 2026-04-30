@@ -29,6 +29,7 @@ function writeMarkdownToBody(body: GoogleAppsScript.Document.Body, markdown: str
           3: DocumentApp.ParagraphHeading.HEADING3,
         };
         p.setHeading(headings[block.level || 1]);
+        applyDocInlineStyles(p);
         break;
       }
       case "table": {
