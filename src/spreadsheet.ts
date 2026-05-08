@@ -54,7 +54,26 @@ function writeSheet(id: string, sheetName: string, range: string, csv: string): 
   if (!csv.trim()) throw new Error("No data provided");
   const data = Utilities.parseCsv(csv);
   const target = sheet.getRange(range).offset(0, 0, data.length, data[0].length);
-  target.setValues(data);
+
+  // Check for rich text markup and apply
+  const richCells: { row: number; col: number; rich: RichCell }[] = [];
+  const plainData = data.map((row, r) =>
+    row.map((cell, c) => {
+      if (hasRichText(cell)) {
+        const rich = parseRichCell(cell);
+        richCells.push({ row: r, col: c, rich });
+        return rich.plainText;
+      }
+      return cell;
+    }),
+  );
+
+  target.setValues(plainData);
+
+  for (const { row, col, rich } of richCells) {
+    target.getCell(row + 1, col + 1).setRichTextValue(buildRichTextValue(rich));
+  }
+
   return { spreadsheetName: ss.getName(), sheet: sheetName, range: target.getA1Notation(), rows: data.length, cols: data[0].length };
 }
 

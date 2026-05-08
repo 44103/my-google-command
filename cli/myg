@@ -29,6 +29,8 @@ Actions:
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
+    Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
+    Escape literal braces: {{ and }}
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
@@ -110,6 +112,7 @@ Examples:
   myg sheet create id=1abc...xyz "name=NewSheet"
   echo "A,B,C" | myg sheet write id=1abc...xyz "name=Sheet1" range=A1
   cat data.csv | myg sheet write id=1abc...xyz "name=Sheet1" range=B2
+  echo "{red}Error{/red},OK" | myg sheet write id=1abc...xyz "name=Sheet1"  # rich text (partial color)
   myg docs
   myg doc id=1abc...xyz
   echo "text" | myg doc append id=1abc...xyz
