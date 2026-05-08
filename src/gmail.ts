@@ -64,15 +64,17 @@ function listFilters(): object[] {
   }));
 }
 
-function createFilter(query: string, labelName: string, skipInbox?: boolean): { id: string; query: string; label: string } {
+function createFilter(query: string, labelName: string, skipInbox?: boolean, markAsRead?: boolean): { id: string; query: string; label: string } {
   const labels = Gmail.Users!.Labels!.list("me").labels || [];
   let label = labels.find((l: GoogleAppsScript.Gmail.Schema.Label) => l.name === labelName);
   if (!label) {
     label = Gmail.Users!.Labels!.create({ name: labelName, labelListVisibility: "labelShow", messageListVisibility: "show" }, "me");
   }
 
-  const action: GoogleAppsScript.Gmail.Schema.FilterAction = { addLabelIds: [label.id!] };
-  if (skipInbox) action.removeLabelIds = ["INBOX"];
+  const action: GoogleAppsScript.Gmail.Schema.FilterAction = { addLabelIds: [label.id!], removeLabelIds: [] };
+  if (skipInbox) action.removeLabelIds!.push("INBOX");
+  if (markAsRead) action.removeLabelIds!.push("UNREAD");
+  if (action.removeLabelIds!.length === 0) delete action.removeLabelIds;
 
   const filter = Gmail.Users!.Settings!.Filters!.create({
     criteria: { query },

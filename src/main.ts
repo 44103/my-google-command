@@ -237,6 +237,7 @@ function doPost(
           body.query,
           body.label,
           body.skipInbox === "true" || body.skipInbox === true,
+          body.markAsRead === "true" || body.markAsRead === true,
         );
         break;
       case "mail:filter:delete":

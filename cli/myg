@@ -552,12 +552,14 @@ elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:del
   f_query=""
   f_label=""
   f_skip_inbox=""
+  f_mark_as_read=""
   for arg in "$@"; do
     case "$arg" in
       id=*)        f_id="${arg#id=}" ;;
       q=*)         f_query="${arg#q=}" ;;
       label=*)     f_label="${arg#label=}" ;;
       skipInbox)   f_skip_inbox="true" ;;
+      markAsRead)  f_mark_as_read="true" ;;
     esac
   done
 
@@ -567,7 +569,8 @@ elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:del
     --arg query "$f_query" \
     --arg label "$f_label" \
     --arg skipInbox "$f_skip_inbox" \
-    '{action: ("mail:" + $sub), id: $id, query: $query, label: $label, skipInbox: $skipInbox}')
+    --arg markAsRead "$f_mark_as_read" \
+    '{action: ("mail:" + $sub), id: $id, query: $query, label: $label, skipInbox: $skipInbox, markAsRead: $markAsRead}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
