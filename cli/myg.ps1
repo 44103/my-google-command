@@ -403,6 +403,7 @@ switch ($action) {
             action = "mail:filter:$filterSub"; id = Get-Val "id"
             query = Get-Val "q"; label = Get-Val "label"
             skipInbox = if ("skipInbox" -in $flags) { "true" } else { "" }
+            markAsRead = if ("markAsRead" -in $flags) { "true" } else { "" }
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
@@ -505,10 +506,11 @@ switch ($action) {
     }
 
     # --- Doc subcommands (POST + stdin) ---
-    { $_ -eq "doc" -and $subaction -in "create", "append", "overwrite" } {
+    { $_ -eq "doc" -and $subaction -in "create", "append", "overwrite", "addtab", "renametab", "movetab", "copytab" } {
         $body = @{
             action = "doc:$subaction"; id = Get-Val "id"; name = Get-Val "name"
             text = Read-Stdin; format = Get-Val "format"
+            tab = Get-Val "tab"; index = Get-Val "index"; parent = Get-Val "parent"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
