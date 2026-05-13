@@ -13,7 +13,7 @@ if (-not (Test-Path $profileDir)) { New-Item -ItemType Directory -Path $profileD
 if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
 
 $marker = "# myg-cli"
-$funcLine = "$marker`nfunction myg { `$input | & '$Ps1Path' @args }"
+$funcLine = "$marker`nfunction myg { `$input | powershell -ExecutionPolicy Bypass -File '$Ps1Path' @args }"
 $profileContent = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
 if ($profileContent -and $profileContent.Contains($marker)) {
     # Update existing entry
@@ -24,7 +24,7 @@ if ($profileContent -and $profileContent.Contains($marker)) {
 }
 
 # Load into current session
-Invoke-Expression "function global:myg { `$input | & '$Ps1Path' @args }"
+Invoke-Expression "function global:myg { `$input | powershell -ExecutionPolicy Bypass -File '$Ps1Path' @args }"
 
 Write-Host "Installed myg (PowerShell function) -> $PROFILE" -ForegroundColor Green
 Write-Host "Run ``myg auth`` to get started." -ForegroundColor Cyan
