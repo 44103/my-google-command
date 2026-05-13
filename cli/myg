@@ -203,7 +203,11 @@ if [[ "$action" == "auth" ]]; then
   fi
 
   echo "Opening browser for authentication..." >&2
-  open_browser "${BASE}?action=auth"
+  if [[ -n "${GW_DOMAIN:-}" ]]; then
+    open_browser "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+  else
+    open_browser "${BASE}?action=auth"
+  fi
   echo -n "Paste token: " >&2
   read -r token
   echo "$token" > "$TOKEN_FILE"

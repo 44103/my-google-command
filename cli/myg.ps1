@@ -239,7 +239,11 @@ if ($action -eq "auth") {
         }
     } catch {}
 
-    $authUrl = "$Base`?action=auth"
+    $authUrl = if ($GW_DOMAIN) {
+        "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+    } else {
+        "$Base`?action=auth"
+    }
     Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
     Start-Process $authUrl
     $token = Read-Host "Paste token"

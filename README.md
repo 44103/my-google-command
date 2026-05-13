@@ -337,6 +337,7 @@ yarn open  # GAS エディタを開く
 |------|------|-----------|
 | `DEPLOY_ID` | GAS のデプロイ ID | （必須） |
 | `GW_ACCESS` | Web App のアクセス範囲（`DOMAIN` / `MYSELF`） | `DOMAIN` |
+| `GW_DOMAIN` | Google Workspace ドメイン（設定すると auth URL がドメイン限定形式になり、正しいアカウントで開きやすくなる） | （未設定） |
 
 ### npm scripts
 
