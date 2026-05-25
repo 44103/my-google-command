@@ -14,8 +14,22 @@ function getSlideContent(id: string, page?: string): { name: string; totalPages:
   const slides = pres.getSlides();
   const pageNum = page ? parseInt(page) : 0;
 
-  const extractTexts = (slide: GoogleAppsScript.Slides.Slide): string[] =>
-    slide.getShapes().map(s => s.getText().asString().trim()).filter(t => t.length > 0);
+  const extractTexts = (slide: GoogleAppsScript.Slides.Slide): string[] => {
+    const texts = slide.getShapes().map(s => s.getText().asString().trim()).filter(t => t.length > 0);
+    const tables = slide.getTables();
+    tables.forEach(table => {
+      const rows: string[] = [];
+      for (let r = 0; r < table.getNumRows(); r++) {
+        const cells: string[] = [];
+        for (let c = 0; c < table.getNumColumns(); c++) {
+          cells.push(table.getCell(r, c).getText().asString().trim());
+        }
+        rows.push(cells.join('\t'));
+      }
+      texts.push('[TABLE]\n' + rows.join('\n'));
+    });
+    return texts;
+  };
 
   if (pageNum > 0) {
     if (pageNum > slides.length) throw new Error(`Page ${pageNum} not found. Total pages: ${slides.length}`);
