@@ -107,6 +107,9 @@ function doGet(
       case "contact":
         result = getContact(e.parameter.id);
         break;
+      case "comments":
+        result = listComments(resolveId(e.parameter));
+        break;
       default:
         result = {
           error: "Unknown action",
