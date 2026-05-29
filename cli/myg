@@ -77,6 +77,9 @@ Actions:
   slide create name="TITLE"       Create new presentation
   slide addpage id=<ID or URL>    Add blank page
   slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
+  slide notes id=<ID or URL> [page=<N>]  Get speaker notes (all or one page)
+  slide note set id=<ID or URL> page=<N>  Set speaker note from stdin
+  slide note clear id=<ID or URL> page=<N>  Clear speaker note
   forms [max=<N>]               List all forms (default: 20)
   form id=<ID or URL>           Get form detail (questions)
   form responses id=<ID or URL> Get form responses
@@ -316,9 +319,20 @@ fi
 
 # slide subcommands (create/addpage/addtext) use POST
 slide_subaction=""
+slide_notes=""
+slide_note_set=""
+slide_note_clear=""
 if [[ "$action" == "slide" && $# -gt 0 ]]; then
   case "$1" in
     create|addpage|addtext|overwrite) slide_subaction="$1"; shift ;;
+    notes) slide_notes="1"; shift ;;
+    note)
+      shift
+      case "$1" in
+        set)   slide_note_set="1"; shift ;;
+        clear) slide_note_clear="1"; shift ;;
+      esac
+      ;;
   esac
 fi
 
@@ -486,6 +500,61 @@ elif [[ -n "$comment_subaction" ]]; then
       '{action: ("comment:" + $sub), id: $id, comment: $comment, text: $text}')
   fi
 
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$slide_notes" ]]; then
+  sn_id=""
+  sn_page=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sn_id="${arg#id=}" ;;
+      page=*) sn_page="${arg#page=}" ;;
+    esac
+  done
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=slide:notes")
+  curl_args+=(--data-urlencode "id=${sn_id}")
+  [[ -n "$sn_page" ]] && curl_args+=(--data-urlencode "page=${sn_page}")
+  response=$(curl "${curl_args[@]}" "$BASE")
+elif [[ -n "$slide_note_set" ]]; then
+  sn_id=""
+  sn_page=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sn_id="${arg#id=}" ;;
+      page=*) sn_page="${arg#page=}" ;;
+    esac
+  done
+  stdin_text=""
+  if [[ ! -t 0 ]]; then
+    stdin_text=$(cat)
+  fi
+  if [[ -z "$stdin_text" ]]; then
+    echo "Error: No note text provided via stdin" >&2
+    exit 1
+  fi
+  json_body=$(jq -n \
+    --arg id "$sn_id" \
+    --arg page "$sn_page" \
+    --arg text "$stdin_text" \
+    '{action: "slide:note:set", id: $id, page: $page, text: $text}')
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$slide_note_clear" ]]; then
+  sn_id=""
+  sn_page=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sn_id="${arg#id=}" ;;
+      page=*) sn_page="${arg#page=}" ;;
+    esac
+  done
+  json_body=$(jq -n \
+    --arg id "$sn_id" \
+    --arg page "$sn_page" \
+    '{action: "slide:note:clear", id: $id, page: $page}')
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$json_body" "$BASE")

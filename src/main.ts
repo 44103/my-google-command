@@ -89,6 +89,9 @@ function doGet(
       case "slide":
         result = getSlideContent(resolveId(e.parameter), e.parameter.page);
         break;
+      case "slide:notes":
+        result = getSlideNotes(resolveId(e.parameter), e.parameter.page);
+        break;
       case "forms":
         result = listForms(parseInt(e.parameter.max || "20"));
         break;
@@ -258,6 +261,12 @@ function doPost(
         break;
       case "slide:addtext":
         result = addSlideText(resolveId(body), body.page, body.text);
+        break;
+      case "slide:note:set":
+        result = setSlideNote(resolveId(body), body.page, body.text);
+        break;
+      case "slide:note:clear":
+        result = clearSlideNote(resolveId(body), body.page);
         break;
       case "slide:overwrite":
         result = overwriteSlideFromMarkdown(resolveId(body), body.text);

@@ -199,6 +199,12 @@ myg slide addpage id=<ID>                            # 空白ページ追加
 myg slide addtext id=<ID> page=1 text="テキスト"      # テキストボックス追加
 echo "長いテキスト" | myg slide addtext id=<ID> page=1  # stdin からも可
 
+# --- Slides（スピーカーノート） ---
+myg slide notes id=<ID>                              # 全ページのノート取得
+myg slide notes id=<ID> page=3                       # 特定ページのノート取得
+echo "発表メモ" | myg slide note set id=<ID> page=1   # ノート設定
+myg slide note clear id=<ID> page=1                  # ノート削除
+
 # --- Forms ---
 myg forms                                           # フォーム一覧
 myg form id=<ID>                                    # 質問一覧・詳細

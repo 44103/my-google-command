@@ -62,3 +62,36 @@ function addSlideText(id: string, page: string, text: string): { page: number; s
   const shape = slides[pageNum - 1].insertTextBox(text);
   return { page: pageNum, shapeId: shape.getObjectId() };
 }
+
+function getSlideNotes(id: string, page?: string): { name: string; notes: { page: number; note: string }[] } {
+  const pres = SlidesApp.openById(id);
+  const slides = pres.getSlides();
+  if (page) {
+    const p = parseInt(page);
+    if (p < 1 || p > slides.length) throw new Error(`Page ${p} not found. Total pages: ${slides.length}`);
+    const note = slides[p - 1].getNotesPage().getSpeakerNotesShape().getText().asString().trim();
+    return { name: pres.getName(), notes: [{ page: p, note }] };
+  }
+  return {
+    name: pres.getName(),
+    notes: slides.map((s, i) => ({ page: i + 1, note: s.getNotesPage().getSpeakerNotesShape().getText().asString().trim() })).filter(n => n.note),
+  };
+}
+
+function setSlideNote(id: string, page: string, text: string): { page: number; note: string } {
+  const pres = SlidesApp.openById(id);
+  const slides = pres.getSlides();
+  const p = parseInt(page);
+  if (p < 1 || p > slides.length) throw new Error(`Page ${p} not found. Total pages: ${slides.length}`);
+  slides[p - 1].getNotesPage().getSpeakerNotesShape().getText().setText(text);
+  return { page: p, note: text };
+}
+
+function clearSlideNote(id: string, page: string): { page: number; cleared: true } {
+  const pres = SlidesApp.openById(id);
+  const slides = pres.getSlides();
+  const p = parseInt(page);
+  if (p < 1 || p > slides.length) throw new Error(`Page ${p} not found. Total pages: ${slides.length}`);
+  slides[p - 1].getNotesPage().getSpeakerNotesShape().getText().clear();
+  return { page: p, cleared: true };
+}

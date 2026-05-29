@@ -81,6 +81,9 @@ Actions:
   slide create name="TITLE"       Create new presentation
   slide addpage id=<ID or URL>    Add blank page
   slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
+  slide notes id=<ID or URL> [page=<N>]  Get speaker notes (all or one page)
+  slide note set id=<ID or URL> page=<N>  Set speaker note from stdin
+  slide note clear id=<ID or URL> page=<N>  Clear speaker note
   forms [max=<N>]               List all forms (default: 20)
   form id=<ID or URL>           Get form detail (questions)
   form responses id=<ID or URL> Get form responses
@@ -341,6 +344,38 @@ switch ($action) {
             page = Get-Val "page"; text = $text; format = Get-Val "format"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Slide notes (GET) ---
+    { $_ -eq "slide" -and $subaction -eq "notes" } {
+        $q = @{ action = "slide:notes"; id = Get-Val "id" }
+        $page = Get-Val "page"
+        if ($page) { $q["page"] = $page }
+        Format-Output (Invoke-Api -Method GET -Query $q)
+        break
+    }
+
+    # --- Slide note set/clear (POST) ---
+    { $_ -eq "slide" -and $subaction -eq "note" } {
+        $sub2 = if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') { $remaining[0] } else { "" }
+        if ($sub2 -eq "set") {
+            $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+            $parsed = Parse-Args $remaining
+            $text = Read-Stdin
+            if (-not $text) { Write-Error "No note text provided via stdin"; exit 1 }
+            Format-Output (Invoke-Api -Method POST -Body @{
+                action = "slide:note:set"; id = Get-Val "id"; page = Get-Val "page"; text = $text
+            })
+        } elseif ($sub2 -eq "clear") {
+            $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+            $parsed = Parse-Args $remaining
+            Format-Output (Invoke-Api -Method POST -Body @{
+                action = "slide:note:clear"; id = Get-Val "id"; page = Get-Val "page"
+            })
+        } else {
+            Write-Error "Unknown note subcommand. Use: set, clear"; exit 1
+        }
         break
     }
 
