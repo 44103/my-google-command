@@ -92,6 +92,7 @@ Actions:
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
+  comments id=<ID or URL>       List comments on any file (Docs/Sheets/Slides)
   contacts [max=<N>]            List personal contacts (default: 20)
   contacts search q=<QUERY> [max=<N>]  Search organization directory
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)

@@ -33,6 +33,8 @@ Actions:
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
+    Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
+    Escape literal braces: {{ and }}
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
@@ -94,6 +96,7 @@ Actions:
   task update id=<TASKLIST_ID> task=<TASK_ID> [title=...] [due=...] [notes="..."]  Update task
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
+  comments id=<ID or URL>       List comments on any file (Docs/Sheets/Slides)
   contacts [max=<N>]            List personal contacts (default: 20)
   contacts search q=<QUERY> [max=<N>]  Search organization directory
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
