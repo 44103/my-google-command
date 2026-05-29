@@ -117,6 +117,12 @@ myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作�
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
 cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
 
+# --- Spreadsheet（メモ） ---
+myg sheet notes id=<ID> "name=<SHEET_NAME>"                         # メモ一覧（デフォルト A1:Z1000）
+myg sheet notes id=<ID> "name=<SHEET_NAME>" range=A1:C10            # 範囲指定
+echo "メモ内容" | myg sheet note set id=<ID> "name=<SHEET_NAME>" cell=A1  # メモ設定
+myg sheet note clear id=<ID> "name=<SHEET_NAME>" cell=A1            # メモ削除
+
 # --- Spreadsheet（XLSX 読み取り） ---
 myg spreadsheet id=<XLSX_FILE_ID>                   # XLSX のシート一覧（読み取り専用）
 myg sheet id=<XLSX_FILE_ID> "name=<SHEET_NAME>"     # XLSX のシートデータ取得

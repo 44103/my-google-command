@@ -35,6 +35,9 @@ Actions:
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
     Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
     Escape literal braces: {{ and }}
+  sheet notes id=<ID or URL> name=<SHEET> [range=A1:Z1000]  Get cell notes
+  sheet note set id=<ID or URL> name=<SHEET> cell=<A1>  Set note from stdin
+  sheet note clear id=<ID or URL> name=<SHEET> cell=<A1>  Clear note
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
@@ -525,6 +528,40 @@ switch ($action) {
             range = (Get-Val "range" "A1"); text = $text
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Sheet notes (GET) ---
+    { $_ -eq "sheet" -and $subaction -eq "notes" } {
+        $q = @{ action = "sheet:notes"; id = Get-Val "id"; name = Get-Val "name" }
+        $range = Get-Val "range"
+        if ($range) { $q["range"] = $range }
+        Format-Output (Invoke-Api -Method GET -Query $q)
+        break
+    }
+
+    # --- Sheet note set/clear (POST) ---
+    { $_ -eq "sheet" -and $subaction -eq "note" } {
+        $sub2 = if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') { $remaining[0] } else { "" }
+        if ($sub2 -eq "set") {
+            $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+            $parsed = Parse-Args $remaining
+            $text = Read-Stdin
+            if (-not $text) { Write-Error "No note text provided via stdin"; exit 1 }
+            Format-Output (Invoke-Api -Method POST -Body @{
+                action = "sheet:note:set"; id = Get-Val "id"; name = Get-Val "name"
+                cell = Get-Val "cell"; text = $text
+            })
+        } elseif ($sub2 -eq "clear") {
+            $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+            $parsed = Parse-Args $remaining
+            Format-Output (Invoke-Api -Method POST -Body @{
+                action = "sheet:note:clear"; id = Get-Val "id"; name = Get-Val "name"
+                cell = Get-Val "cell"
+            })
+        } else {
+            Write-Error "Unknown note subcommand. Use: set, clear"; exit 1
+        }
         break
     }
 

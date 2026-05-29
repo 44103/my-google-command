@@ -88,3 +88,36 @@ function createSpreadsheet(name: string): { id: string; name: string; url: strin
   const ss = SpreadsheetApp.create(name);
   return { id: ss.getId(), name: ss.getName(), url: ss.getUrl() };
 }
+
+function getNotes(id: string, sheetName: string, range: string): { sheet: string; range: string; notes: { cell: string; note: string }[] } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  const r = sheet.getRange(range);
+  const notes = r.getNotes();
+  const result: { cell: string; note: string }[] = [];
+  for (let row = 0; row < notes.length; row++) {
+    for (let col = 0; col < notes[row].length; col++) {
+      if (notes[row][col]) {
+        result.push({ cell: r.getCell(row + 1, col + 1).getA1Notation(), note: notes[row][col] });
+      }
+    }
+  }
+  return { sheet: sheetName, range: r.getA1Notation(), notes: result };
+}
+
+function setNote(id: string, sheetName: string, cell: string, text: string): { sheet: string; cell: string; note: string } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  sheet.getRange(cell).setNote(text);
+  return { sheet: sheetName, cell, note: text };
+}
+
+function clearNote(id: string, sheetName: string, cell: string): { sheet: string; cell: string; cleared: true } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  sheet.getRange(cell).clearNote();
+  return { sheet: sheetName, cell, cleared: true };
+}

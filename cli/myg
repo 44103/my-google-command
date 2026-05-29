@@ -31,6 +31,9 @@ Actions:
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
     Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
     Escape literal braces: {{ and }}
+  sheet notes id=<ID or URL> name=<SHEET> [range=A1:Z1000]  Get cell notes
+  sheet note set id=<ID or URL> name=<SHEET> cell=<A1>  Set note from stdin
+  sheet note clear id=<ID or URL> name=<SHEET> cell=<A1>  Clear note
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
@@ -263,11 +266,22 @@ fi
 # sheet write subcommand uses POST + stdin (TSV)
 sheet_write=""
 sheet_create=""
+sheet_notes=""
+sheet_note_set=""
+sheet_note_clear=""
 spreadsheet_create=""
 if [[ "$action" == "sheet" && $# -gt 0 ]]; then
   case "$1" in
-    write)  sheet_write="1"; shift ;;
-    create) sheet_create="1"; shift ;;
+    write)      sheet_write="1"; shift ;;
+    create)     sheet_create="1"; shift ;;
+    notes)      sheet_notes="1"; shift ;;
+    note)
+      shift
+      case "$1" in
+        set)   sheet_note_set="1"; shift ;;
+        clear) sheet_note_clear="1"; shift ;;
+      esac
+      ;;
   esac
 fi
 if [[ "$action" == "spreadsheet" && $# -gt 0 ]]; then
@@ -796,6 +810,70 @@ elif [[ -n "$sheet_create" ]]; then
     --arg name "$sc_name" \
     '{action: "sheet:create", id: $id, name: $name}')
 
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_notes" ]]; then
+  sn_id=""
+  sn_name=""
+  sn_range=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)    sn_id="${arg#id=}" ;;
+      name=*)  sn_name="${arg#name=}" ;;
+      range=*) sn_range="${arg#range=}" ;;
+    esac
+  done
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=sheet:notes")
+  curl_args+=(--data-urlencode "id=${sn_id}")
+  curl_args+=(--data-urlencode "name=${sn_name}")
+  [[ -n "$sn_range" ]] && curl_args+=(--data-urlencode "range=${sn_range}")
+  response=$(curl "${curl_args[@]}" "$BASE")
+elif [[ -n "$sheet_note_set" ]]; then
+  sn_id=""
+  sn_name=""
+  sn_cell=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sn_id="${arg#id=}" ;;
+      name=*) sn_name="${arg#name=}" ;;
+      cell=*) sn_cell="${arg#cell=}" ;;
+    esac
+  done
+  stdin_text=""
+  if [[ ! -t 0 ]]; then
+    stdin_text=$(cat)
+  fi
+  if [[ -z "$stdin_text" ]]; then
+    echo "Error: No note text provided via stdin" >&2
+    exit 1
+  fi
+  json_body=$(jq -n \
+    --arg id "$sn_id" \
+    --arg name "$sn_name" \
+    --arg cell "$sn_cell" \
+    --arg text "$stdin_text" \
+    '{action: "sheet:note:set", id: $id, name: $name, cell: $cell, text: $text}')
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_note_clear" ]]; then
+  sn_id=""
+  sn_name=""
+  sn_cell=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sn_id="${arg#id=}" ;;
+      name=*) sn_name="${arg#name=}" ;;
+      cell=*) sn_cell="${arg#cell=}" ;;
+    esac
+  done
+  json_body=$(jq -n \
+    --arg id "$sn_id" \
+    --arg name "$sn_name" \
+    --arg cell "$sn_cell" \
+    '{action: "sheet:note:clear", id: $id, name: $name, cell: $cell}')
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$json_body" "$BASE")

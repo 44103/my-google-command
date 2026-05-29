@@ -110,6 +110,9 @@ function doGet(
       case "comments":
         result = listComments(resolveId(e.parameter));
         break;
+      case "sheet:notes":
+        result = getNotes(resolveId(e.parameter), e.parameter.name, e.parameter.range || "A1:Z1000");
+        break;
       default:
         result = { error: `Unknown action: ${action}` };
     }
@@ -276,6 +279,12 @@ function doPost(
         break;
       case "comment:delete":
         result = deleteComment(resolveId(body), body.comment);
+        break;
+      case "sheet:note:set":
+        result = setNote(resolveId(body), body.name, body.cell, body.text);
+        break;
+      case "sheet:note:clear":
+        result = clearNote(resolveId(body), body.name, body.cell);
         break;
       default:
         result = { error: `Unknown action: ${action}` };
