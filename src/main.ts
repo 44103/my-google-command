@@ -111,29 +111,7 @@ function doGet(
         result = listComments(resolveId(e.parameter));
         break;
       default:
-        result = {
-          error: "Unknown action",
-          available: [
-            "spreadsheets",
-            "spreadsheet",
-            "sheet",
-            "docs",
-            "doc",
-            "mails",
-            "mail",
-            "mail:filters",
-            "files",
-            "file",
-            "file:history",
-            "slides",
-            "slide",
-            "tasklists",
-            "tasks",
-            "calendars",
-            "events",
-            "auth",
-          ],
-        };
+        result = { error: `Unknown action: ${action}` };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
       ContentService.MimeType.JSON,
@@ -293,35 +271,14 @@ function doPost(
       case "comment:create":
         result = createComment(resolveId(body), body.text);
         break;
+      case "comment:update":
+        result = updateComment(resolveId(body), body.comment, body.text);
+        break;
+      case "comment:delete":
+        result = deleteComment(resolveId(body), body.comment);
+        break;
       default:
-        result = {
-          error: "Unknown action",
-          available: [
-            "doc:create",
-            "doc:append",
-            "doc:overwrite",
-            "sheet:write",
-            "sheet:create",
-            "task:create",
-            "task:update",
-            "task:done",
-            "task:delete",
-            "event:create",
-            "mail:draft",
-            "mail:draft:delete",
-            "mail:label",
-            "mail:filter:create",
-            "mail:filter:delete",
-            "file:upload",
-            "file:move",
-            "file:rename",
-            "file:shortcut",
-            "file:copy",
-            "slide:create",
-            "slide:addpage",
-            "slide:addtext",
-          ],
-        };
+        result = { error: `Unknown action: ${action}` };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
       ContentService.MimeType.JSON,

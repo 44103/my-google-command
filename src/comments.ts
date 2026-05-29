@@ -36,3 +36,13 @@ function createComment(fileId: string, content: string): { id: string; author: s
     createdTime: res.createdDate || "",
   };
 }
+
+function updateComment(fileId: string, commentId: string, content: string): { id: string; content: string } {
+  const res = (Drive as any).Comments.patch({ content }, fileId, commentId);
+  return { id: res.commentId || "", content: res.content || "" };
+}
+
+function deleteComment(fileId: string, commentId: string): { success: true } {
+  (Drive as any).Comments.remove(fileId, commentId);
+  return { success: true };
+}

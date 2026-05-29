@@ -176,6 +176,9 @@ myg file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  # リビジョン間の�
 # --- Comments（共通） ---
 myg comments id=<FILE_ID>                           # コメント一覧（Docs/Sheets/Slides 共通）
 myg comments "id=<URL>"                             # URL でも OK
+echo "本文" | myg comment create id=<FILE_ID>       # コメント追加
+echo "新内容" | myg comment update id=<FILE_ID> comment=<COMMENT_ID>  # コメント更新
+myg comment delete id=<FILE_ID> comment=<COMMENT_ID>                  # コメント削除
 
 # --- Slides（読み取り） ---
 myg slides                                          # 一覧取得

@@ -94,6 +94,8 @@ Actions:
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
   comments id=<ID or URL>       List comments on any file (Docs/Sheets/Slides)
   comment create id=<ID or URL>  Add comment from stdin
+  comment update id=<ID or URL> comment=<COMMENT_ID>  Update comment from stdin
+  comment delete id=<ID or URL> comment=<COMMENT_ID>  Delete comment
   contacts [max=<N>]            List personal contacts (default: 20)
   contacts search q=<QUERY> [max=<N>]  Search organization directory
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
@@ -327,7 +329,7 @@ fi
 comment_subaction=""
 if [[ "$action" == "comment" && $# -gt 0 ]]; then
   case "$1" in
-    create) comment_subaction="create"; shift ;;
+    create|update|delete) comment_subaction="$1"; shift ;;
   esac
 fi
 
@@ -439,25 +441,36 @@ elif [[ -n "$form_subaction" ]]; then
   fi
 elif [[ -n "$comment_subaction" ]]; then
   cm_id=""
+  cm_comment=""
   for arg in "$@"; do
     case "$arg" in
       id=*) cm_id="${arg#id=}" ;;
+      comment=*) cm_comment="${arg#comment=}" ;;
     esac
   done
 
-  stdin_text=""
-  if [[ ! -t 0 ]]; then
-    stdin_text=$(cat)
-  fi
-  if [[ -z "$stdin_text" ]]; then
-    echo "Error: No comment text provided via stdin" >&2
-    exit 1
-  fi
+  if [[ "$comment_subaction" == "delete" ]]; then
+    json_body=$(jq -n \
+      --arg id "$cm_id" \
+      --arg comment "$cm_comment" \
+      '{action: "comment:delete", id: $id, comment: $comment}')
+  else
+    stdin_text=""
+    if [[ ! -t 0 ]]; then
+      stdin_text=$(cat)
+    fi
+    if [[ -z "$stdin_text" ]]; then
+      echo "Error: No comment text provided via stdin" >&2
+      exit 1
+    fi
 
-  json_body=$(jq -n \
-    --arg id "$cm_id" \
-    --arg text "$stdin_text" \
-    '{action: "comment:create", id: $id, text: $text}')
+    json_body=$(jq -n \
+      --arg sub "$comment_subaction" \
+      --arg id "$cm_id" \
+      --arg comment "$cm_comment" \
+      --arg text "$stdin_text" \
+      '{action: ("comment:" + $sub), id: $id, comment: $comment, text: $text}')
+  fi
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
