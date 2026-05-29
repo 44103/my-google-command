@@ -125,6 +125,7 @@ myg sheet id=<XLSX_FILE_ID> "name=<SHEET_NAME>"     # XLSX のシートデータ
 myg docs                                            # 一覧取得
 myg doc id=<ID>                                     # ドキュメント内容取得
 myg doc "id=<URL>"                                  # URL でも OK
+myg doc tabs id=<ID>                                # タブ一覧
 
 # --- Docs（書き込み） ---
 myg doc create name="タイトル"                       # 新規作成
@@ -133,6 +134,13 @@ echo "追加テキスト" | myg doc append id=<ID>          # 末尾に追記
 myg doc append id=<ID> < memo.txt                    # ファイルから追記
 myg doc overwrite id=<ID> < new.txt                  # 上書き
 cat README.md | myg doc overwrite id=<ID> format=markdown  # Markdown 装飾付き
+
+# --- Docs（タブ操作） ---
+myg doc addtab id=<ID> name="新しいタブ"             # タブ追加
+myg doc addtab id=<ID> name="子タブ" parent=<TAB_ID> # 子タブとして追加
+myg doc renametab id=<ID> tab=<TAB_ID> name="新名"   # タブ名変更
+myg doc movetab id=<ID> tab=<TAB_ID> index=0         # タブ移動
+myg doc copytab id=<ID> tab=<TAB_ID> name="コピー"   # タブ複製（スタイル保持）
 
 # --- Gmail ---
 myg mails                                           # 受信トレイ最新20件
@@ -160,8 +168,14 @@ myg file move id=<FILE_ID> folder=<FOLDER_ID>       # ファイル移動
 myg file rename id=<FILE_ID> name="新しい名前"      # ファイル/フォルダ名変更
 myg file copy id=<FILE_ID>                          # 同じフォルダにコピー
 myg file copy id=<FILE_ID> folder=<FOLDER_ID> name="コピー"  # フォルダ・名前指定でコピー
+myg file shortcut id=<FILE_ID>                      # ショートカット作成
+myg file shortcut id=<FILE_ID> folder=<FOLDER_ID>   # フォルダ指定でショートカット作成
 myg file history id=<FILE_ID>                       # 変更履歴を取得
 myg file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  # リビジョン間の差分を取得
+
+# --- Comments（共通） ---
+myg comments id=<FILE_ID>                           # コメント一覧（Docs/Sheets/Slides 共通）
+myg comments "id=<URL>"                             # URL でも OK
 
 # --- Slides（読み取り） ---
 myg slides                                          # 一覧取得
@@ -201,6 +215,7 @@ myg tasklist create title="買い物"                   # タスクリスト作�
 myg tasklist update id=<TASKLIST_ID> title="新しい名前"  # タスクリスト名変更
 myg tasklist delete id=<TASKLIST_ID>                 # タスクリスト削除
 myg tasks id=<TASKLIST_ID>                          # タスク一覧
+myg tasks completed id=<TASKLIST_ID>                # 完了済みタスク一覧
 myg task create id=<TASKLIST_ID> title="タスク名"    # タスク作成
 myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10  # 期限付き
 myg task create id=<TASKLIST_ID> title="タスク名" due=2026-04-10 notes="詳細メモ"  # 説明付き
