@@ -97,6 +97,7 @@ Actions:
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
   comments id=<ID or URL>       List comments on any file (Docs/Sheets/Slides)
+  comment create id=<ID or URL>  Add comment from stdin
   contacts [max=<N>]            List personal contacts (default: 20)
   contacts search q=<QUERY> [max=<N>]  Search organization directory
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
@@ -334,6 +335,15 @@ switch ($action) {
             action = "slide:$subaction"; id = Get-Val "id"; name = Get-Val "name"
             page = Get-Val "page"; text = $text; format = Get-Val "format"
         }
+        Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Comment create (POST + stdin) ---
+    { $_ -eq "comment" -and $subaction -eq "create" } {
+        $text = Read-Stdin
+        if (-not $text) { Write-Error "No comment text provided via stdin"; exit 1 }
+        $body = @{ action = "comment:create"; id = Get-Val "id"; text = $text }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
     }

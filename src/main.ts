@@ -290,6 +290,9 @@ function doPost(
           low: body.low, high: body.high, lowLabel: body.lowLabel, highLabel: body.highLabel,
         });
         break;
+      case "comment:create":
+        result = createComment(resolveId(body), body.text);
+        break;
       default:
         result = {
           error: "Unknown action",

@@ -26,3 +26,13 @@ function listComments(fileId: string): {
     })),
   }));
 }
+
+function createComment(fileId: string, content: string): { id: string; author: string; content: string; createdTime: string } {
+  const res = (Drive as any).Comments.insert({ content }, fileId);
+  return {
+    id: res.commentId || "",
+    author: res.author?.displayName || "",
+    content: res.content || "",
+    createdTime: res.createdDate || "",
+  };
+}

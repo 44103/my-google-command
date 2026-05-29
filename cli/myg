@@ -93,6 +93,7 @@ Actions:
   task delete id=<TASKLIST_ID> task=<TASK_ID>  Delete task
   task done id=<TASKLIST_ID> task=<TASK_ID>  Complete task
   comments id=<ID or URL>       List comments on any file (Docs/Sheets/Slides)
+  comment create id=<ID or URL>  Add comment from stdin
   contacts [max=<N>]            List personal contacts (default: 20)
   contacts search q=<QUERY> [max=<N>]  Search organization directory
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
@@ -322,6 +323,14 @@ if [[ "$action" == "contacts" && $# -gt 0 ]]; then
   esac
 fi
 
+# comment subcommands
+comment_subaction=""
+if [[ "$action" == "comment" && $# -gt 0 ]]; then
+  case "$1" in
+    create) comment_subaction="create"; shift ;;
+  esac
+fi
+
 # files subcommands
 files_subaction=""
 if [[ "$action" == "files" && $# -gt 0 ]]; then
@@ -428,6 +437,31 @@ elif [[ -n "$form_subaction" ]]; then
       -H "Content-Type: application/json" \
       -d "$json_body" "$BASE")
   fi
+elif [[ -n "$comment_subaction" ]]; then
+  cm_id=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*) cm_id="${arg#id=}" ;;
+    esac
+  done
+
+  stdin_text=""
+  if [[ ! -t 0 ]]; then
+    stdin_text=$(cat)
+  fi
+  if [[ -z "$stdin_text" ]]; then
+    echo "Error: No comment text provided via stdin" >&2
+    exit 1
+  fi
+
+  json_body=$(jq -n \
+    --arg id "$cm_id" \
+    --arg text "$stdin_text" \
+    '{action: "comment:create", id: $id, text: $text}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$slide_subaction" ]]; then
   sl_id=""
   sl_name=""
