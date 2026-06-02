@@ -30,7 +30,7 @@ function doGet(
         result = listDocs(parseInt(e.parameter.max || "20"));
         break;
       case "doc":
-        result = getDocContent(resolveId(e.parameter));
+        result = getDocContent(resolveId(e.parameter), e.parameter.tab);
         break;
       case "doc:tabs":
         result = listDocTabs(resolveId(e.parameter));

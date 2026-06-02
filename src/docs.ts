@@ -13,11 +13,12 @@ function listDocs(max = 20): { id: string; name: string; url: string; lastUpdate
   return result;
 }
 
-function getDocContent(id: string): { name: string; body: string } {
+function getDocContent(id: string, tab?: string): { name: string; body: string } {
   const doc = DocumentApp.openById(id);
+  const body = tab ? getTabBody(doc, tab) : doc.getBody();
   return {
     name: doc.getName(),
-    body: doc.getBody().getText(),
+    body: body.getText(),
   };
 }
 
