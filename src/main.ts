@@ -116,6 +116,21 @@ function doGet(
       case "sheet:notes":
         result = getNotes(resolveId(e.parameter), e.parameter.name, e.parameter.range || "A1:Z1000");
         break;
+      case "gas:info":
+        result = getGasInfo(e.parameter.script);
+        break;
+      case "gas:deployments":
+        result = listGasDeployments(e.parameter.script);
+        break;
+      case "gas:versions":
+        result = listGasVersions(e.parameter.script);
+        break;
+      case "gas:files":
+        result = listGasFiles(e.parameter.script);
+        break;
+      case "gas:file":
+        result = getGasFile(e.parameter.script, e.parameter.name);
+        break;
       default:
         result = { error: `Unknown action: ${action}` };
     }

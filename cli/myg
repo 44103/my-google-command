@@ -113,6 +113,10 @@ Actions:
     Note: id=self or omit id to use your default calendar
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
+  gas info script=<SCRIPT_ID or URL>    GAS project info
+  gas list [max=<N>]                    List GAS projects (default: 20)
+  gas files script=<SCRIPT_ID or URL>   List source files
+  gas file script=<SCRIPT_ID or URL> name=<FILENAME>  Get source code
 
 Examples:
   myg auth
@@ -385,7 +389,32 @@ if [[ "$action" == "event" && $# -gt 0 ]]; then
   esac
 fi
 
-if [[ -n "$tasks_subaction" ]]; then
+# gas subcommands use GET
+gas_subaction=""
+if [[ "$action" == "gas" && $# -gt 0 ]]; then
+  case "$1" in
+    info|list|files|file) gas_subaction="$1"; shift ;;
+  esac
+fi
+
+if [[ -n "$gas_subaction" ]]; then
+  g_script=""
+  g_name=""
+  g_max=""
+  for arg in "$@"; do
+    case "$arg" in
+      script=*) g_script="${arg#script=}" ;;
+      name=*)   g_name="${arg#name=}" ;;
+      max=*)    g_max="${arg#max=}" ;;
+    esac
+  done
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=gas:${gas_subaction}")
+  [[ -n "$g_script" ]] && curl_args+=(--data-urlencode "script=${g_script}")
+  [[ -n "$g_name" ]] && curl_args+=(--data-urlencode "name=${g_name}")
+  [[ -n "$g_max" ]] && curl_args+=(--data-urlencode "max=${g_max}")
+  response=$(curl "${curl_args[@]}" "$BASE")
+elif [[ -n "$tasks_subaction" ]]; then
   tc_id=""
   for arg in "$@"; do
     case "$arg" in

@@ -6,4 +6,4 @@ source "$SCRIPT_DIR/../.env" 2>/dev/null || true
 
 VERSION=$(node -p "require('./package.json').version")
 
-clasp deploy ${DEPLOY_ID:+-i "$DEPLOY_ID"} -d "v${VERSION}"
+npx clasp deploy ${DEPLOY_ID:+-i "$DEPLOY_ID"} -d "v${VERSION}"

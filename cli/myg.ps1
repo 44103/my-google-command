@@ -117,6 +117,10 @@ Actions:
     Note: id=self or omit id to use your default calendar
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
+  gas info script=<SCRIPT_ID or URL>    GAS project info
+  gas list [max=<N>]                    List GAS projects (default: 20)
+  gas files script=<SCRIPT_ID or URL>   List source files
+  gas file script=<SCRIPT_ID or URL> name=<FILENAME>  Get source code
 "@
     exit 0
 }
@@ -495,6 +499,19 @@ switch ($action) {
             to = Get-Val "to"; subject = Get-Val "subject"; text = Read-Stdin
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- GAS subcommands (GET) ---
+    { $_ -eq "gas" -and $subaction -in "info", "list", "files", "file" } {
+        $q = @{ action = "gas:$subaction" }
+        $script = Get-Val "script"
+        if ($script) { $q["script"] = $script }
+        $name = Get-Val "name"
+        if ($name) { $q["name"] = $name }
+        $max = Get-Val "max"
+        if ($max) { $q["max"] = $max }
+        Format-Output (Invoke-Api -Method GET -Query $q)
         break
     }
 

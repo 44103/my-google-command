@@ -224,6 +224,14 @@ myg contacts                                        # 個人の連絡先一覧
 myg contacts search q="松尾"                         # 組織ディレクトリ検索
 myg contact id=<RESOURCE_NAME>                      # 連絡先詳細（上司・従業員ID等）
 
+# --- GAS (Apps Script) ---
+myg gas info script=<SCRIPT_ID>                     # プロジェクト情報
+myg gas info "script=https://script.google.com/d/<ID>/edit"  # URL でも OK
+myg gas deployments script=<SCRIPT_ID>              # デプロイ一覧
+myg gas versions script=<SCRIPT_ID>                 # バージョン履歴
+myg gas files script=<SCRIPT_ID>                    # ソースファイル一覧
+myg gas file script=<SCRIPT_ID> name=Code           # ソースコード表示
+
 # --- Tasks ---
 myg tasklists                                       # タスクリスト一覧
 myg tasklist create title="買い物"                   # タスクリスト作成

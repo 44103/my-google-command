@@ -57,6 +57,7 @@
     "https://www.googleapis.com/auth/forms",
     "https://www.googleapis.com/auth/contacts.readonly",
     "https://www.googleapis.com/auth/directory.readonly",
-    "https://www.googleapis.com/auth/script.external_request"
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.projects.readonly"
   ]
 }
