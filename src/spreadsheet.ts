@@ -36,12 +36,25 @@ function listSheets(id: string): { spreadsheetName: string; sheets: string[] } {
   } finally { cleanupTemp(tempId); }
 }
 
-function getSheetData(id: string, sheetName: string): { spreadsheetName: string; sheet: string; data: unknown[][] } {
+function getSheetData(id: string, sheetName: string): { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } {
   const { ss, tempId } = openAsSpreadsheet(id);
   try {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
-    return { spreadsheetName: ss.getName(), sheet: sheetName, data: sheet.getDataRange().getValues() };
+    const range = sheet.getDataRange();
+    const data = range.getValues();
+    const bgs = range.getBackgrounds();
+    const colors: { cell: string; color: string }[] = [];
+    for (let row = 0; row < bgs.length; row++) {
+      for (let col = 0; col < bgs[row].length; col++) {
+        if (bgs[row][col] && bgs[row][col] !== "#ffffff") {
+          colors.push({ cell: range.getCell(row + 1, col + 1).getA1Notation(), color: bgs[row][col] });
+        }
+      }
+    }
+    const result: { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } = { spreadsheetName: ss.getName(), sheet: sheetName, data };
+    if (colors.length > 0) result.colors = colors;
+    return result;
   } finally { cleanupTemp(tempId); }
 }
 
