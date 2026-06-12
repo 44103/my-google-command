@@ -15,3 +15,58 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
   echo "Add to your shell profile:"
   echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
 fi
+
+# Offer to create .permission.json if it doesn't exist
+MYG_CONFIG="$PROJECT_DIR/.permission.json"
+if [[ ! -f "$MYG_CONFIG" ]]; then
+  echo ""
+  echo "=== Action Permission Setup ==="
+  echo "You can restrict which myg actions are available."
+  echo ""
+  echo "  1) Allow all (no restrictions)"
+  echo "  2) Deny specific actions"
+  echo "  3) Allow only specific actions"
+  echo ""
+  read -rp "Choose [1]: " choice
+  choice="${choice:-1}"
+
+  case "$choice" in
+    2)
+      echo ""
+      echo "Available actions:"
+      echo "  docs, doc, doc create, doc append, doc overwrite, doc tabs, doc addtab,"
+      echo "  doc renametab, doc movetab, spreadsheets, spreadsheet, sheet, sheet write,"
+      echo "  sheet create, mails, mail, mail draft, mail draft delete, mail filters,"
+      echo "  mail labels, mail filter create, mail filter delete, mail label,"
+      echo "  files, files search, file, file upload, file move, file rename, file copy,"
+      echo "  file shortcut, file history, file diff, slides, slide, slide create,"
+      echo "  slide addpage, slide addtext, slide overwrite, forms, form, form create,"
+      echo "  form additem, form responses, contacts, contacts search, contact,"
+      echo "  tasklists, tasks, tasks completed, task create, task update, task done,"
+      echo "  task delete, tasklist create, tasklist update, tasklist delete,"
+      echo "  calendars, events, event create, event update, event delete, event freebusy, rooms"
+      echo ""
+      read -rp "Actions to deny (comma-separated): " deny_input
+      if [[ -n "$deny_input" ]]; then
+        jq -n --arg d "$deny_input" '{deny: ($d | split(",") | map(gsub("^\\s+|\\s+$"; "")))}' > "$MYG_CONFIG"
+        chmod 444 "$MYG_CONFIG"
+        echo "Created $MYG_CONFIG (read-only)"
+      fi
+      ;;
+    3)
+      echo ""
+      echo "Enter the actions you want to allow (comma-separated)."
+      echo "Example: docs, doc, doc tabs, spreadsheets, sheet"
+      echo ""
+      read -rp "Actions to allow: " allow_input
+      if [[ -n "$allow_input" ]]; then
+        jq -n --arg a "$allow_input" '{allow: ($a | split(",") | map(gsub("^\\s+|\\s+$"; "")))}' > "$MYG_CONFIG"
+        chmod 444 "$MYG_CONFIG"
+        echo "Created $MYG_CONFIG (read-only)"
+      fi
+      ;;
+    *)
+      echo "No restrictions set."
+      ;;
+  esac
+fi

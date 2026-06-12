@@ -226,6 +226,13 @@ if [[ "$action" == "auth" ]]; then
   read -r token
   echo "$token" > "$TOKEN_FILE"
   echo "Token saved." >&2
+
+  if [[ ! -f "$SCRIPT_DIR/../.permission.json" ]]; then
+    echo "" >&2
+    echo "Tip: You can create .permission.json to restrict available actions." >&2
+    echo "  See: ./scripts/install or README for details" >&2
+  fi
+
   exit 0
 fi
 
@@ -241,6 +248,27 @@ else
 fi
 
 curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}" --data-urlencode "action=${action}")
+
+# Permission check via .permission.json
+check_permission() {
+  local full_action="$1"
+  local config="$SCRIPT_DIR/../.permission.json"
+  [[ ! -f "$config" ]] && return 0
+
+  if jq -e '.allow' "$config" &>/dev/null; then
+    if ! jq -e --arg a "$full_action" '.allow | index($a)' "$config" &>/dev/null; then
+      echo "Action '$full_action' is not in allow list. Check .permission.json" >&2
+      exit 1
+    fi
+  fi
+
+  if jq -e '.deny' "$config" &>/dev/null; then
+    if jq -e --arg a "$full_action" '.deny | index($a)' "$config" &>/dev/null; then
+      echo "Action '$full_action' is denied. Check .permission.json" >&2
+      exit 1
+    fi
+  fi
+}
 
 # doc subcommands (create/append/overwrite) use POST + stdin
 doc_subaction=""
@@ -396,6 +424,25 @@ if [[ "$action" == "gas" && $# -gt 0 ]]; then
     info|list|files|file) gas_subaction="$1"; shift ;;
   esac
 fi
+
+# Resolve full action name for permission check (normalize : to space for user-facing format)
+full_action="$action"
+[[ -n "${doc_subaction:-}" ]] && full_action="doc $doc_subaction"
+[[ -n "${mail_subaction:-}" ]] && full_action="mail ${mail_subaction//:/ }"
+[[ -n "${sheet_write:-}" ]] && full_action="sheet write"
+[[ -n "${sheet_create:-}" ]] && full_action="sheet create"
+[[ -n "${spreadsheet_create:-}" ]] && full_action="spreadsheet create"
+[[ -n "${task_subaction:-}" ]] && full_action="task $task_subaction"
+[[ -n "${tasklist_subaction:-}" ]] && full_action="tasklist $tasklist_subaction"
+[[ -n "${file_subaction:-}" ]] && full_action="file $file_subaction"
+[[ -n "${slide_subaction:-}" ]] && full_action="slide $slide_subaction"
+[[ -n "${form_subaction:-}" ]] && full_action="form $form_subaction"
+[[ -n "${contacts_subaction:-}" ]] && full_action="contacts $contacts_subaction"
+[[ -n "${files_subaction:-}" ]] && full_action="files $files_subaction"
+[[ -n "${tasks_subaction:-}" ]] && full_action="tasks $tasks_subaction"
+[[ -n "${event_subaction:-}" ]] && full_action="event $event_subaction"
+[[ -n "${gas_subaction:-}" ]] && full_action="gas $gas_subaction"
+check_permission "$full_action"
 
 if [[ -n "$gas_subaction" ]]; then
   g_script=""

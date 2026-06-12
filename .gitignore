@@ -5,3 +5,4 @@ yarn-error.log
 *.log
 .env
 .token
+.permission.json

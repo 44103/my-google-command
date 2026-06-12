@@ -262,6 +262,32 @@ myg event freebusy emails=a@example.com,b@example.com from=2026-04-14 to=2026-04
 
 Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.com/mail/answer/7190) がそのまま使えます。
 
+### アクション権限設定（.permission.json）
+
+`.permission.json` をリポジトリルートに作成すると、使用できるアクションを制限できます。
+このファイルは Git 管理外（`.gitignore` 済み）なので、ユーザーごとに設定できます。
+
+**deny 方式**（指定したアクションだけ拒否、他は全許可）:
+
+```json
+{
+  "deny": ["mail draft", "file upload", "contacts", "contacts search"]
+}
+```
+
+**allow 方式**（指定したアクションだけ許可、他は全拒否）:
+
+```json
+{
+  "allow": ["docs", "doc", "doc tabs", "doc append", "doc overwrite", "spreadsheets", "sheet"]
+}
+```
+
+- ファイルがない場合はすべてのアクションが許可されます
+- アクション名はコマンドと同じ形式です（例: `doc create`, `mail draft`, `event freebusy`）
+- サブコマンドなしのアクション（`docs`, `mails` 等）はそのまま指定します
+- `./scripts/install` 実行時に対話形式で作成することもできます
+
 ### Docs 書き込みについて
 
 書き込み系コマンド（`create` / `append` / `overwrite`）は本文を stdin から受け取ります。
