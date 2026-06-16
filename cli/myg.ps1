@@ -30,6 +30,7 @@ Actions:
   auth                          Authenticate via browser and save token
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
+  spreadsheet create name="TITLE"  Create new spreadsheet
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
@@ -63,6 +64,7 @@ Actions:
   mail draft delete id=<DRAFT_ID>  Delete draft
   mail filters                    List Gmail filters
   mail labels                     List Gmail labels
+  mail label q="<QUERY>" label="<LABEL>" [skipInbox=true]  Apply label to matching mails
   mail filter create q="<QUERY>" label="<LABEL>"  Create filter
   mail filter delete id=<FILTER_ID>  Delete filter
   files [id=<FOLDER_ID>] [max=<N>]  List Drive files (default: root, 20)
@@ -73,6 +75,7 @@ Actions:
   file rename id=<FILE_ID> name=<NEW_NAME>  Rename file/folder
   file shortcut id=<FILE_ID> [folder=<FOLDER_ID>]  Create shortcut
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
+  file mkdir name=<NAME> [folder=<FOLDER_ID>]  Create folder
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
   slides [max=<N>]                List all presentations (default: 20)
@@ -81,6 +84,7 @@ Actions:
   slide create name="TITLE"       Create new presentation
   slide addpage id=<ID or URL>    Add blank page
   slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
+  slide overwrite id=<ID or URL>  Overwrite all slides from stdin (format=markdown)
   slide notes id=<ID or URL> [page=<N>]  Get speaker notes (all or one page)
   slide note set id=<ID or URL> page=<N>  Set speaker note from stdin
   slide note clear id=<ID or URL> page=<N>  Clear speaker note
@@ -435,8 +439,8 @@ switch ($action) {
         break
     }
 
-    # --- File move/copy (POST) ---
-    { $_ -eq "file" -and $subaction -in "move", "copy", "rename", "shortcut" } {
+    # --- File move/copy/mkdir (POST) ---
+    { $_ -eq "file" -and $subaction -in "move", "copy", "rename", "shortcut", "mkdir" } {
         $body = @{
             action = "file:$subaction"; id = Get-Val "id"
             folder = Get-Val "folder"; name = Get-Val "name"

@@ -32,6 +32,12 @@ function uploadFile(folderId: string, name: string, data: string, isBase64?: boo
   return { id: file.getId(), name: file.getName(), folder: folder.getName() };
 }
 
+function createFolder(name: string, parentId?: string): { id: string; name: string; folder: string } {
+  const parent = parentId ? DriveApp.getFolderById(parentId) : DriveApp.getRootFolder();
+  const created = parent.createFolder(name);
+  return { id: created.getId(), name: created.getName(), folder: parent.getName() };
+}
+
 function createShortcut(targetId: string, folderId?: string): { id: string; name: string; folder: string } {
   const target = DriveApp.getFileById(targetId);
   const folder = folderId ? DriveApp.getFolderById(folderId) : target.getParents().next();

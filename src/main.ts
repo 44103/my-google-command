@@ -266,6 +266,9 @@ function doPost(
       case "file:copy":
         result = copyFile(body.id, body.folder, body.name);
         break;
+      case "file:mkdir":
+        result = createFolder(body.name, body.folder);
+        break;
       case "slide:create":
         result = body.format === "markdown" && body.text
           ? createSlideFromMarkdown(body.name, body.text)

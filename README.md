@@ -112,6 +112,7 @@ myg help
 myg spreadsheets                                    # 一覧取得
 myg spreadsheet id=<ID>                             # シート一覧
 myg spreadsheet "id=<URL>"                          # URL でも OK
+myg spreadsheet create name="タイトル"              # 新規作成
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
 myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
@@ -162,6 +163,7 @@ myg mail filters                                         # フィルタ一覧
 myg mail filter create q="from:someone@example.com" label="Work"  # フィルタ作成
 myg mail filter delete id=<FILTER_ID>                    # フィルタ削除
 myg mail labels                                          # ラベル一覧
+myg mail label q="is:unread" label="要対応"              # 条件に合うメールにラベル付与
 
 # --- Drive ---
 myg files                                           # ルートフォルダ一覧（デフォルト20件）
@@ -171,6 +173,8 @@ myg file id=<FILE_ID>                               # ファイルダウンロ�
 echo "content" | myg file upload folder=<FOLDER_ID> name="memo.txt"  # テキストアップロード
 myg file upload folder=<FOLDER_ID> name="photo.png" file=./photo.png  # ファイル指定アップロード
 myg file move id=<FILE_ID> folder=<FOLDER_ID>       # ファイル移動
+myg file mkdir name="新フォルダ"                     # フォルダ作成（ルート）
+myg file mkdir name="新フォルダ" folder=<FOLDER_ID>  # フォルダ作成（親指定）
 myg file rename id=<FILE_ID> name="新しい名前"      # ファイル/フォルダ名変更
 myg file copy id=<FILE_ID>                          # 同じフォルダにコピー
 myg file copy id=<FILE_ID> folder=<FOLDER_ID> name="コピー"  # フォルダ・名前指定でコピー
@@ -198,6 +202,7 @@ myg slide create name="プレゼン名"                    # 新規作成
 myg slide addpage id=<ID>                            # 空白ページ追加
 myg slide addtext id=<ID> page=1 text="テキスト"      # テキストボックス追加
 echo "長いテキスト" | myg slide addtext id=<ID> page=1  # stdin からも可
+cat deck.md | myg slide overwrite id=<ID> format=markdown  # Markdown からスライド上書き
 
 # --- Slides（スピーカーノート） ---
 myg slide notes id=<ID>                              # 全ページのノート取得
