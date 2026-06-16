@@ -318,6 +318,7 @@ Docs への書き込み時に、以下のプレースホルダーを使うと Go
 | `{{ DATE:YYYY-MM-DD:locale }}` | locale 指定の日付チップ | `Due: {{ DATE:2026-05-01:en }}` |
 | `{{ PERSON:メールアドレス }}` | 参加者チップ | `担当: {{ PERSON:user@example.com }}` |
 | `{{ LINK:URL }}` | リッチリンク（スマートチップ） | `参照: {{ LINK:https://docs.google.com/... }}` |
+| `{{ IMAGE:URL or FILE_ID }}` | インライン画像 | `図: {{ IMAGE:1abc...xyz }}` |
 
 `format=markdown` でもプレーンテキストでも、`tab=` 指定でも動作します。
 日付チップのデフォルト locale は `en`（英語）です。

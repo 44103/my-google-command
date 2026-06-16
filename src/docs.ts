@@ -111,12 +111,13 @@ function replacePlaceholders(id: string, tab?: string): void {
     fullText += r.text;
   }
 
-  const pattern = /\{\{\s*(DATE(?::(\d{4}-\d{2}-\d{2}))?(?::([a-z]{2}))?|PERSON:([^\s}]+)|LINK:(https?:\/\/[^\s}]+))\s*\}\}/g;
+  const pattern = /\{\{\s*(DATE(?::(\d{4}-\d{2}-\d{2}))?(?::([a-z]{2}))?|PERSON:([^\s}]+)|LINK:(https?:\/\/[^\s}]+)|IMAGE:([^\s}]+))\s*\}\}/g;
   const matches: { start: number; end: number; type: string; value: string; locale: string }[] = [];
   let m;
   while ((m = pattern.exec(fullText)) !== null) {
     let type: string, value: string, locale = "ja";
-    if (m[5]) { type = "link"; value = m[5]; }
+    if (m[6]) { type = "image"; value = m[6]; }
+    else if (m[5]) { type = "link"; value = m[5]; }
     else if (m[4]) { type = "person"; value = m[4]; }
     else { type = "date"; value = m[2] || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"); locale = m[3] || "en"; }
     matches.push({ start: indexMap[m.index], end: indexMap[m.index + m[0].length - 1] + 1, type, value, locale });
@@ -127,6 +128,7 @@ function replacePlaceholders(id: string, tab?: string): void {
   const requests: any[] = [];
   for (let i = matches.length - 1; i >= 0; i--) {
     const m = matches[i];
+    if (m.type === "image") continue;
     requests.push({ deleteContentRange: { range: { startIndex: m.start, endIndex: m.end, tabId } } });
     if (m.type === "date") {
       requests.push({
@@ -151,7 +153,53 @@ function replacePlaceholders(id: string, tab?: string): void {
       });
     }
   }
-  Docs.Documents!.batchUpdate({ requests }, id);
+  if (requests.length > 0) {
+    Docs.Documents!.batchUpdate({ requests }, id);
+  }
+
+  // Handle image placeholders via DocumentApp (supports private Drive files)
+  const imageMatches = matches.filter(x => x.type === "image");
+  if (imageMatches.length > 0) {
+    const doc = DocumentApp.openById(id);
+    const body = doc.getBody();
+    for (const im of imageMatches) {
+      let blob: GoogleAppsScript.Base.Blob;
+      if (im.value.startsWith("http")) {
+        blob = UrlFetchApp.fetch(im.value, { muteHttpExceptions: true }).getBlob();
+      } else {
+        blob = DriveApp.getFileById(im.value).getBlob();
+      }
+      const escapedValue = im.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchPattern = `\\{\\{\\s*IMAGE:${escapedValue}\\s*\\}\\}`;
+      const found = body.findText(searchPattern);
+      if (found) {
+        const element = found.getElement();
+        const parent = element.getParent();
+        const parentIndex = body.getChildIndex(parent);
+        const paraText = parent.asText().getText().trim();
+        // If paragraph contains only the placeholder, replace with image
+        if (paraText.match(new RegExp(`^\\{\\{\\s*IMAGE:${escapedValue}\\s*\\}\\}$`))) {
+          parent.asParagraph().clear();
+          body.insertImage(parentIndex, blob);
+          // Remove the now-empty paragraph after the image (if not the last element)
+          if (parentIndex + 1 < body.getNumChildren()) {
+            const next = body.getChild(parentIndex + 1);
+            if (next.getType() === DocumentApp.ElementType.PARAGRAPH && next.asText().getText() === "") {
+              body.removeChild(next);
+            }
+          }
+        } else {
+          // Inline replacement
+          const para = parent.asParagraph();
+          const startOffset = found.getStartOffset();
+          const endOffset = found.getEndOffsetInclusive();
+          para.editAsText().deleteText(startOffset, endOffset);
+          para.insertInlineImage(startOffset > 0 ? 1 : 0, blob);
+        }
+      }
+    }
+    doc.saveAndClose();
+  }
 }
 
 function collectTextRuns(elements: any[], runs: { start: number; text: string }[]): void {
