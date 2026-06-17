@@ -79,6 +79,11 @@ Actions:
   file mkdir name=<NAME> [folder=<FOLDER_ID>]  Create folder
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
+  file share id=<FILE_ID>               List sharing permissions
+  file share id=<FILE_ID> email=<ADDR> role=<reader|writer|commenter>  Share with user
+  file share id=<FILE_ID> type=domain domain=<DOMAIN> role=<reader|writer>  Share with domain
+  file share id=<FILE_ID> type=anyone role=reader  Share with anyone (link sharing)
+  file unshare id=<FILE_ID> permission=<PERMISSION_ID>  Remove sharing
   slides [max=<N>]                List all presentations (default: 20)
   slide id=<ID or URL>            Get all slide content
   slide id=<ID or URL> page=<N>   Get specific page content
@@ -446,6 +451,27 @@ switch ($action) {
             action = "file:$subaction"; id = Get-Val "id"
             folder = Get-Val "folder"; name = Get-Val "name"
         }
+        Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- File share (GET=list, POST=add) ---
+    { $_ -eq "file" -and $subaction -eq "share" } {
+        $role = Get-Val "role"
+        if (-not $role) {
+            Format-Output (Invoke-Api -Method GET -Query @{ action = "file:share"; id = (Get-Val "id") })
+        } else {
+            $shareType = Get-Val "type" "user"
+            $shareValue = if ($shareType -eq "domain") { Get-Val "domain" } else { Get-Val "email" }
+            $body = @{ action = "file:share"; id = Get-Val "id"; type = $shareType; role = $role; value = $shareValue }
+            Format-Output (Invoke-Api -Method POST -Body $body)
+        }
+        break
+    }
+
+    # --- File unshare (POST) ---
+    { $_ -eq "file" -and $subaction -eq "unshare" } {
+        $body = @{ action = "file:unshare"; id = Get-Val "id"; permission = Get-Val "permission" }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
     }

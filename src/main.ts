@@ -77,6 +77,9 @@ function doGet(
       case "file":
         result = downloadFile(e.parameter.id);
         break;
+      case "file:share":
+        result = listPermissions(resolveId(e.parameter));
+        break;
       case "file:history":
         result = listRevisions(resolveId(e.parameter), parseInt(e.parameter.max || "20"));
         break;
@@ -265,6 +268,12 @@ function doPost(
         break;
       case "file:copy":
         result = copyFile(body.id, body.folder, body.name);
+        break;
+      case "file:share":
+        result = addPermission(body.id, body.type, body.role, body.value);
+        break;
+      case "file:unshare":
+        result = removePermission(body.id, body.permission);
         break;
       case "file:mkdir":
         result = createFolder(body.name, body.folder);

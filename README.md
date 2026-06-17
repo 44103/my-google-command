@@ -183,6 +183,14 @@ myg file shortcut id=<FILE_ID> folder=<FOLDER_ID>   # フォルダ指定でシ�
 myg file history id=<FILE_ID>                       # 変更履歴を取得
 myg file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  # リビジョン間の差分を取得
 
+# --- Drive（共有設定） ---
+myg file share id=<FILE_ID>                                          # 共有設定一覧
+myg file share id=<FILE_ID> email=user@example.com role=reader       # ユーザーに共有（閲覧者）
+myg file share id=<FILE_ID> email=user@example.com role=writer       # ユーザーに共有（編集者）
+myg file share id=<FILE_ID> type=domain domain=example.com role=reader  # ドメイン全体に共有
+myg file share id=<FILE_ID> type=anyone role=reader                  # リンクを知っている全員に共有
+myg file unshare id=<FILE_ID> permission=<PERMISSION_ID>             # 共有を解除
+
 # --- Comments（共通） ---
 myg comments id=<FILE_ID>                           # コメント一覧（Docs/Sheets/Slides 共通）
 myg comments "id=<URL>"                             # URL でも OK

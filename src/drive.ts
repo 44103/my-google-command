@@ -121,6 +121,33 @@ function diffRevisions(fileId: string, rev1: string, rev2: string): { name: stri
   return { name: file.getName(), rev1, rev2, diff };
 }
 
+function listPermissions(fileId: string): { id: string; name: string; permissions: { id: string; type: string; role: string; email?: string; domain?: string }[] } {
+  const file = DriveApp.getFileById(fileId);
+  const res = (Drive.Permissions as any).list(fileId, { supportsAllDrives: true });
+  const items = res.items || res.permissions || [];
+  const permissions = items.map((p: any) => ({
+    id: p.id!,
+    type: p.type!,
+    role: p.role!,
+    email: p.emailAddress || undefined,
+    domain: p.domain || undefined,
+  }));
+  return { id: fileId, name: file.getName(), permissions };
+}
+
+function addPermission(fileId: string, type: string, role: string, value?: string): { id: string; type: string; role: string; email?: string; domain?: string } {
+  const body: any = { type, role };
+  if (type === "user" || type === "group") body.emailAddress = value;
+  if (type === "domain") body.domain = value;
+  const res = (Drive.Permissions as any).insert(body, fileId, { sendNotificationEmails: "false", supportsAllDrives: true });
+  return { id: res.id!, type: res.type!, role: res.role!, email: res.emailAddress, domain: res.domain };
+}
+
+function removePermission(fileId: string, permissionId: string): { success: boolean } {
+  (Drive.Permissions as any).remove(fileId, permissionId, { supportsAllDrives: true });
+  return { success: true };
+}
+
 function searchFiles(query: string, max = 20): { id: string; name: string; type: string; updated: string }[] {
   const files = DriveApp.searchFiles("title contains '" + query.replace(/'/g, "\\'") + "'");
   const result: { id: string; name: string; type: string; updated: string }[] = [];
