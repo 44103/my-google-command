@@ -17,6 +17,11 @@ function doGet(
 
     let result: unknown;
     switch (action) {
+      case "whoami": {
+        const about = Drive.About!.get({});
+        result = { email: (about as any).user.emailAddress, name: (about as any).user.displayName };
+        break;
+      }
       case "spreadsheets":
         result = listSpreadsheets(parseInt(e.parameter.max || "20"));
         break;

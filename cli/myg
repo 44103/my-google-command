@@ -24,6 +24,7 @@ Usage: myg <action> [key=value ...]
 
 Actions:
   auth                          Authenticate via browser and save token
+  whoami                        Show current authenticated user
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
   spreadsheet create name="TITLE"  Create new spreadsheet
