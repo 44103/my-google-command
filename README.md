@@ -267,11 +267,33 @@ myg events id=self                                  # 自分のカレンダー�
 myg events id=<CAL_ID> from=2026-04-08 to=2026-04-15  # 日付範囲指定
 myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00
 myg event create id=<CAL_ID> title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 location="会議室A"
+myg event create id=self title="英会話" start=2026-04-10T16:00:00 end=2026-04-10T16:30:00 color=tomato  # 色指定
 myg event update id=self event=<EVENT_ID> title="新しいタイトル"  # イベント更新
+myg event update id=self event=<EVENT_ID> color=peacock           # 色変更
 myg event delete id=self event=<EVENT_ID>                        # イベント削除
 myg event freebusy emails=a@example.com,b@example.com                    # 空き時間検索（今日、30分枠）
 myg event freebusy emails=a@example.com,b@example.com from=2026-04-14 to=2026-04-18 duration=60  # 日付範囲・時間枠指定
 ```
+
+#### イベントの色（color）
+
+`color=` パラメータで指定できる色名：
+
+| 色名 | 色 |
+|------|------|
+| `lavender` | ラベンダー |
+| `sage` | セージ |
+| `grape` | ブドウ |
+| `flamingo` | フラミンゴ |
+| `banana` | バナナ |
+| `tangerine` | ミカン |
+| `peacock` | ピーコック |
+| `graphite` | グラファイト |
+| `blueberry` | ブルーベリー |
+| `basil` | バジル |
+| `tomato` | トマト |
+
+数字（`1`〜`11`）での指定も可能です。
 
 Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.com/mail/answer/7190) がそのまま使えます。
 

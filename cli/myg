@@ -117,10 +117,11 @@ Actions:
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
-  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...]  Update event
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
+    Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
   gas info script=<SCRIPT_ID or URL>    GAS project info
@@ -860,6 +861,7 @@ elif [[ -n "$event_subaction" ]]; then
   ev_end=""
   ev_location=""
   ev_event=""
+  ev_color=""
   for arg in "$@"; do
     case "$arg" in
       id=*)       ev_id="${arg#id=}" ;;
@@ -868,6 +870,7 @@ elif [[ -n "$event_subaction" ]]; then
       end=*)      ev_end="${arg#end=}" ;;
       location=*) ev_location="${arg#location=}" ;;
       event=*)    ev_event="${arg#event=}" ;;
+      color=*)    ev_color="${arg#color=}" ;;
     esac
   done
 
@@ -879,7 +882,8 @@ elif [[ -n "$event_subaction" ]]; then
     --arg start "$ev_start" \
     --arg end "$ev_end" \
     --arg location "$ev_location" \
-    '{action: ("event:" + $sub), id: $id, event: $event, title: $title, start: $start, end: $end, location: $location}')
+    --arg color "$ev_color" \
+    '{action: ("event:" + $sub), id: $id, event: $event, title: $title, start: $start, end: $end, location: $location, color: $color}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

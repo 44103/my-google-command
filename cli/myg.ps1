@@ -121,10 +121,11 @@ Actions:
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
-  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...]  Update event
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
+    Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
   gas info script=<SCRIPT_ID or URL>    GAS project info
@@ -560,7 +561,7 @@ switch ($action) {
         $body = @{
             action = "event:$subaction"; id = Get-Val "id"; event = Get-Val "event"
             title = Get-Val "title"; start = Get-Val "start"; end = Get-Val "end"
-            location = Get-Val "location"
+            location = Get-Val "location"; color = Get-Val "color"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

@@ -23,13 +23,29 @@ function listEvents(calId: string, from?: string, to?: string): { id: string; ti
   }));
 }
 
-function createEvent(calId: string, title: string, start: string, end: string, location?: string): { id: string; title: string; start: string; end: string } {
+const EVENT_COLORS: Record<string, string> = {
+  lavender: "1", sage: "2", grape: "3", flamingo: "4", banana: "5",
+  tangerine: "6", peacock: "7", graphite: "8", blueberry: "9", basil: "10", tomato: "11",
+};
+
+function resolveColor(color?: string): string | undefined {
+  if (!color) return undefined;
+  const c = EVENT_COLORS[color.toLowerCase()];
+  if (c) return c;
+  if (/^([1-9]|1[01])$/.test(color)) return color;
+  const names = Object.keys(EVENT_COLORS).join(", ");
+  throw new Error(`Unknown color "${color}". Available: ${names}`);
+}
+
+function createEvent(calId: string, title: string, start: string, end: string, location?: string, color?: string): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.createEvent(title, new Date(start), new Date(end), location ? { location } : {});
+  const colorId = resolveColor(color);
+  if (colorId) ev.setColor(colorId);
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 
-function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string }): { id: string; title: string; start: string; end: string } {
+function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string; color?: string }): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.getEventById(eventId);
   if (!ev) throw new Error("Event not found: " + eventId);
@@ -38,6 +54,8 @@ function updateEvent(calId: string, eventId: string, opts: { title?: string; sta
   else if (opts.start) ev.setTime(new Date(opts.start), ev.getEndTime());
   else if (opts.end) ev.setTime(ev.getStartTime(), new Date(opts.end));
   if (opts.location) ev.setLocation(opts.location);
+  const colorId = resolveColor(opts.color);
+  if (colorId) ev.setColor(colorId);
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 
