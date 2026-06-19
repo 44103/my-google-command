@@ -25,6 +25,8 @@ Usage: myg <action> [key=value ...]
 Actions:
   auth                          Authenticate via browser and save token
   whoami                        Show current authenticated user
+  token                         Show auth URL (for non-interactive use)
+  token <TOKEN>                 Save token directly
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
   spreadsheet create name="TITLE"  Create new spreadsheet
@@ -230,12 +232,29 @@ if [[ "$action" == "auth" ]]; then
 
   echo "Opening browser for authentication..." >&2
   if [[ -n "${GW_DOMAIN:-}" ]]; then
-    open_browser "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+    auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
   else
-    open_browser "${BASE}?action=auth"
+    auth_url="${BASE}?action=auth"
   fi
+  open_browser "$auth_url"
+
+  if [[ ! -t 0 ]]; then
+    echo "" >&2
+    echo "Non-interactive shell detected. Use 'myg token' instead:" >&2
+    echo "  1. Open: $auth_url" >&2
+    echo "  2. Copy the token, then run:" >&2
+    echo "     myg token <PASTE_TOKEN_HERE>" >&2
+    exit 1
+  fi
+
   echo -n "Paste token: " >&2
   read -r token
+  if [[ -z "$token" ]]; then
+    echo "" >&2
+    echo "Empty token. Use 'myg token' for non-interactive environments:" >&2
+    echo "  myg token <PASTE_TOKEN_HERE>" >&2
+    exit 1
+  fi
   echo "$token" > "$TOKEN_FILE"
   echo "Token saved." >&2
 
@@ -245,6 +264,20 @@ if [[ "$action" == "auth" ]]; then
     echo "  See: ./scripts/install or README for details" >&2
   fi
 
+  exit 0
+fi
+
+if [[ "$action" == "token" ]]; then
+  if [[ $# -gt 0 && -n "$1" ]]; then
+    echo "$1" > "$TOKEN_FILE"
+    echo "Token saved." >&2
+  else
+    if [[ -n "${GW_DOMAIN:-}" ]]; then
+      echo "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+    else
+      echo "${BASE}?action=auth"
+    fi
+  fi
   exit 0
 fi
 

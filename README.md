@@ -58,6 +58,18 @@ myg auth
 
 > `myg auth` 実行時に自動で `git pull` が行われます。更新があった場合はコミットログが表示されます。
 
+#### 非対話環境（IDE・TUI）での認証
+
+`myg auth` が stdin を待てない環境（Kiro CLI、IDE 内ターミナル等）では、`myg token` を使ってください。
+
+```bash
+# 認証URLを表示
+myg token
+
+# ブラウザでURLを開き、トークンをコピーしてから保存
+myg token ya29.a0ARrdaM...
+```
+
 ### セットアップ（Windows）
 
 1. リポジトリをクローン

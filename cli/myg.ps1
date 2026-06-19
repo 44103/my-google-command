@@ -29,6 +29,8 @@ Usage: myg <action> [key=value ...]
 Actions:
   auth                          Authenticate via browser and save token
   whoami                        Show current authenticated user
+  token                         Show auth URL (for non-interactive use)
+  token <TOKEN>                 Save token directly
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet
   spreadsheet create name="TITLE"  Create new spreadsheet
@@ -277,6 +279,20 @@ if ($action -eq "auth") {
     $token = Read-Host "Paste token"
     Set-Content -Path $TokenFile -Value $token -NoNewline
     Write-Host "Token saved." -ForegroundColor Green
+    exit 0
+}
+
+if ($action -eq "token") {
+    if ($remaining.Count -gt 0 -and $remaining[0] -ne "") {
+        Set-Content -Path $TokenFile -Value $remaining[0] -NoNewline
+        Write-Host "Token saved." -ForegroundColor Green
+    } else {
+        if ($GW_DOMAIN) {
+            Write-Output "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+        } else {
+            Write-Output "$Base`?action=auth"
+        }
+    }
     exit 0
 }
 
