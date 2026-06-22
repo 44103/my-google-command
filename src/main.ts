@@ -183,7 +183,7 @@ function doPost(
         result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
         break;
       case "sheet:write":
-        result = writeSheet(resolveId(body), body.name, body.range, body.text);
+        result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true);
         break;
       case "sheet:create":
         result = createSheet(resolveId(body), body.name);

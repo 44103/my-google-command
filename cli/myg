@@ -1156,11 +1156,13 @@ elif [[ -n "$sheet_write" ]]; then
   sw_id=""
   sw_name=""
   sw_range="A1"
+  sw_header=""
   for arg in "$@"; do
     case "$arg" in
-      id=*)    sw_id="${arg#id=}" ;;
-      name=*)  sw_name="${arg#name=}" ;;
-      range=*) sw_range="${arg#range=}" ;;
+      id=*)     sw_id="${arg#id=}" ;;
+      name=*)   sw_name="${arg#name=}" ;;
+      range=*)  sw_range="${arg#range=}" ;;
+      header=*) sw_header="${arg#header=}" ;;
     esac
   done
 
@@ -1178,7 +1180,8 @@ elif [[ -n "$sheet_write" ]]; then
     --arg name "$sw_name" \
     --arg range "$sw_range" \
     --arg text "$stdin_text" \
-    '{action: "sheet:write", id: $id, name: $name, range: $range, text: $text}')
+    --arg header "$sw_header" \
+    '{action: "sheet:write", id: $id, name: $name, range: $range, text: $text, header: $header}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

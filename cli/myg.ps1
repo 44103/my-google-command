@@ -646,6 +646,7 @@ switch ($action) {
         $body = @{
             action = "sheet:write"; id = Get-Val "id"; name = Get-Val "name"
             range = (Get-Val "range" "A1"); text = $text
+            header = (Get-Val "header")
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

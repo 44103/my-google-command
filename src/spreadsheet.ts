@@ -58,7 +58,7 @@ function getSheetData(id: string, sheetName: string): { spreadsheetName: string;
   } finally { cleanupTemp(tempId); }
 }
 
-function writeSheet(id: string, sheetName: string, range: string, csv: string): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
+function writeSheet(id: string, sheetName: string, range: string, csv: string, header?: boolean): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
   const file = DriveApp.getFileById(id);
   if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) throw new Error("Write is not supported for XLSX files. Use a Google Sheets file.");
   const ss = SpreadsheetApp.openById(id);
@@ -85,6 +85,13 @@ function writeSheet(id: string, sheetName: string, range: string, csv: string): 
 
   for (const { row, col, rich } of richCells) {
     target.getCell(row + 1, col + 1).setRichTextValue(buildRichTextValue(rich));
+  }
+
+  if (header) {
+    const headerRange = target.offset(0, 0, 1, data[0].length);
+    headerRange.setFontWeight("bold");
+    headerRange.setBackground("#f3f3f3");
+    sheet.setFrozenRows(sheet.getRange(range).getRow());
   }
 
   return { spreadsheetName: ss.getName(), sheet: sheetName, range: target.getA1Notation(), rows: data.length, cols: data[0].length };

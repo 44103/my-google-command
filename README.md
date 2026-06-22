@@ -131,6 +131,7 @@ myg sheet delete id=<ID> "name=<SHEET_NAME>"        # シートを削除
 myg sheet rename id=<ID> "name=<SHEET_NAME>" "newname=<NEW_NAME>"  # シートをリネーム
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
 cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
+echo "名前,部署" | myg sheet write id=<ID> "name=<SHEET_NAME>" header=true  # 1行目をヘッダ化（太字+背景色+固定）
 
 # --- Spreadsheet（メモ） ---
 myg sheet notes id=<ID> "name=<SHEET_NAME>"                         # メモ一覧（デフォルト A1:Z1000）
