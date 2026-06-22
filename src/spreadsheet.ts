@@ -97,6 +97,24 @@ function createSheet(id: string, sheetName: string): { spreadsheetName: string; 
   return { spreadsheetName: ss.getName(), sheet: sheetName };
 }
 
+function deleteSheet(id: string, sheetName: string): { spreadsheetName: string; deleted: string } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  if (ss.getSheets().length <= 1) throw new Error("Cannot delete the only sheet");
+  ss.deleteSheet(sheet);
+  return { spreadsheetName: ss.getName(), deleted: sheetName };
+}
+
+function renameSheet(id: string, sheetName: string, newName: string): { spreadsheetName: string; oldName: string; newName: string } {
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  if (ss.getSheetByName(newName)) throw new Error(`Sheet "${newName}" already exists`);
+  sheet.setName(newName);
+  return { spreadsheetName: ss.getName(), oldName: sheetName, newName };
+}
+
 function createSpreadsheet(name: string): { id: string; name: string; url: string } {
   const ss = SpreadsheetApp.create(name);
   return { id: ss.getId(), name: ss.getName(), url: ss.getUrl() };

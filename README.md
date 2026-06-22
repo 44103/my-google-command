@@ -127,6 +127,8 @@ myg spreadsheet "id=<URL>"                          # URL でも OK
 myg spreadsheet create name="タイトル"              # 新規作成
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
 myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
+myg sheet delete id=<ID> "name=<SHEET_NAME>"        # シートを削除
+myg sheet rename id=<ID> "name=<SHEET_NAME>" "newname=<NEW_NAME>"  # シートをリネーム
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
 cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
 

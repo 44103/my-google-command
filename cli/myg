@@ -346,6 +346,8 @@ fi
 # sheet write subcommand uses POST + stdin (TSV)
 sheet_write=""
 sheet_create=""
+sheet_delete=""
+sheet_rename=""
 sheet_notes=""
 sheet_note_set=""
 sheet_note_clear=""
@@ -354,6 +356,8 @@ if [[ "$action" == "sheet" && $# -gt 0 ]]; then
   case "$1" in
     write)      sheet_write="1"; shift ;;
     create)     sheet_create="1"; shift ;;
+    delete)     sheet_delete="1"; shift ;;
+    rename)     sheet_rename="1"; shift ;;
     notes)      sheet_notes="1"; shift ;;
     note)
       shift
@@ -476,6 +480,8 @@ full_action="$action"
 [[ -n "${mail_subaction:-}" ]] && full_action="mail ${mail_subaction//:/ }"
 [[ -n "${sheet_write:-}" ]] && full_action="sheet write"
 [[ -n "${sheet_create:-}" ]] && full_action="sheet create"
+[[ -n "${sheet_delete:-}" ]] && full_action="sheet delete"
+[[ -n "${sheet_rename:-}" ]] && full_action="sheet rename"
 [[ -n "${spreadsheet_create:-}" ]] && full_action="spreadsheet create"
 [[ -n "${task_subaction:-}" ]] && full_action="task $task_subaction"
 [[ -n "${tasklist_subaction:-}" ]] && full_action="tasklist $tasklist_subaction"
@@ -1039,6 +1045,45 @@ elif [[ -n "$sheet_create" ]]; then
     --arg id "$sc_id" \
     --arg name "$sc_name" \
     '{action: "sheet:create", id: $id, name: $name}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_delete" ]]; then
+  sd_id=""
+  sd_name=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sd_id="${arg#id=}" ;;
+      name=*) sd_name="${arg#name=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg id "$sd_id" \
+    --arg name "$sd_name" \
+    '{action: "sheet:delete", id: $id, name: $name}')
+
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_rename" ]]; then
+  sr_id=""
+  sr_name=""
+  sr_newname=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)      sr_id="${arg#id=}" ;;
+      name=*)    sr_name="${arg#name=}" ;;
+      newname=*) sr_newname="${arg#newname=}" ;;
+    esac
+  done
+
+  json_body=$(jq -n \
+    --arg id "$sr_id" \
+    --arg name "$sr_name" \
+    --arg newName "$sr_newname" \
+    '{action: "sheet:rename", id: $id, name: $name, newName: $newName}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

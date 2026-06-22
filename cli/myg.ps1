@@ -36,6 +36,8 @@ Actions:
   spreadsheet create name="TITLE"  Create new spreadsheet
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
+  sheet delete id=<ID or URL> name=<SHEET>  Delete a sheet
+  sheet rename id=<ID or URL> name=<SHEET> newname=<NEW>  Rename a sheet
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
     Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
     Escape literal braces: {{ and }}
@@ -616,6 +618,23 @@ switch ($action) {
     { $_ -eq "sheet" -and $subaction -eq "create" } {
         Format-Output (Invoke-Api -Method POST -Body @{
             action = "sheet:create"; id = Get-Val "id"; name = Get-Val "name"
+        })
+        break
+    }
+
+    # --- Sheet delete (POST) ---
+    { $_ -eq "sheet" -and $subaction -eq "delete" } {
+        Format-Output (Invoke-Api -Method POST -Body @{
+            action = "sheet:delete"; id = Get-Val "id"; name = Get-Val "name"
+        })
+        break
+    }
+
+    # --- Sheet rename (POST) ---
+    { $_ -eq "sheet" -and $subaction -eq "rename" } {
+        Format-Output (Invoke-Api -Method POST -Body @{
+            action = "sheet:rename"; id = Get-Val "id"; name = Get-Val "name"
+            newName = Get-Val "newname"
         })
         break
     }

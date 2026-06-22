@@ -188,6 +188,12 @@ function doPost(
       case "sheet:create":
         result = createSheet(resolveId(body), body.name);
         break;
+      case "sheet:delete":
+        result = deleteSheet(resolveId(body), body.name);
+        break;
+      case "sheet:rename":
+        result = renameSheet(resolveId(body), body.name, body.newName);
+        break;
       case "spreadsheet:create":
         result = createSpreadsheet(body.name);
         break;
