@@ -28,10 +28,12 @@ function createDoc(name: string, text?: string, format?: string): { id: string; 
     if (format === "markdown") {
       writeMarkdownToBody(doc.getBody(), text);
     } else {
-      doc.getBody().appendParagraph(text);
+      const p = doc.getBody().appendParagraph(text);
+      applyDocInlineStyles(p);
     }
   }
   doc.saveAndClose();
+  if (text) replacePlaceholders(doc.getId());
   const updated = DocumentApp.openById(doc.getId());
   return { id: updated.getId(), name: updated.getName(), url: updated.getUrl(), body: updated.getBody().getText() };
 }
@@ -126,9 +128,11 @@ function replacePlaceholders(id: string, tab?: string): void {
   if (matches.length === 0) return;
 
   const requests: any[] = [];
+  const linkMatches: typeof matches = [];
   for (let i = matches.length - 1; i >= 0; i--) {
     const m = matches[i];
     if (m.type === "image") continue;
+    if (m.type === "link") { linkMatches.push(m); continue; }
     requests.push({ deleteContentRange: { range: { startIndex: m.start, endIndex: m.end, tabId } } });
     if (m.type === "date") {
       requests.push({
@@ -144,15 +148,42 @@ function replacePlaceholders(id: string, tab?: string): void {
           location: { index: m.start, tabId },
         },
       });
-    } else if (m.type === "link") {
-      requests.push({
-        insertRichLink: {
-          richLinkProperties: { uri: m.value },
-          location: { index: m.start, tabId },
-        },
-      });
     }
   }
+
+  // Process links: try rich link first, fall back to plain hyperlink
+  for (const m of linkMatches) {
+    const richReqs = [
+      { deleteContentRange: { range: { startIndex: m.start, endIndex: m.end, tabId } } },
+      { insertRichLink: { richLinkProperties: { uri: m.value }, location: { index: m.start, tabId } } },
+    ];
+    try {
+      Docs.Documents!.batchUpdate({ requests: richReqs }, id);
+    } catch (_) {
+      // Re-read positions since doc may have changed
+      const freshDoc = Docs.Documents!.get(id, { includeTabsContent: true } as any) as any;
+      const freshTab = tab
+        ? freshDoc.tabs.find((t: any) => t.tabProperties.tabId === tab)
+        : freshDoc.tabs[0];
+      const freshRuns: { start: number; text: string }[] = [];
+      collectTextRuns(freshTab.documentTab.body.content, freshRuns);
+      let freshText = "";
+      const freshMap: number[] = [];
+      for (const r of freshRuns) { for (let c = 0; c < r.text.length; c++) freshMap.push(r.start + c); freshText += r.text; }
+      const escaped = m.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`\\{\\{\\s*LINK:${escaped}\\s*\\}\\}`);
+      const fm = re.exec(freshText);
+      if (fm) {
+        const s = freshMap[fm.index], e = freshMap[fm.index + fm[0].length - 1] + 1;
+        Docs.Documents!.batchUpdate({ requests: [
+          { deleteContentRange: { range: { startIndex: s, endIndex: e, tabId } as any } },
+          { insertText: { text: m.value, location: { index: s, tabId } as any } },
+          { updateTextStyle: { textStyle: { link: { url: m.value } }, range: { startIndex: s, endIndex: s + m.value.length, tabId } as any, fields: "link" } },
+        ] }, id);
+      }
+    }
+  }
+
   if (requests.length > 0) {
     Docs.Documents!.batchUpdate({ requests }, id);
   }
