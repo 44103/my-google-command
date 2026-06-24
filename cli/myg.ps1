@@ -549,6 +549,7 @@ switch ($action) {
         $body = @{
             action = "mail:draft"; id = Get-Val "id"
             to = Get-Val "to"; subject = Get-Val "subject"; text = Read-Stdin
+            cc = Get-Val "cc"; bcc = Get-Val "bcc"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

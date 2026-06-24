@@ -233,9 +233,9 @@ function doPost(
         break;
       case "mail:draft":
         if (body.id) {
-          result = updateDraft(body.id, body.to, body.subject, body.text);
+          result = updateDraft(body.id, body.to, body.subject, body.text, body.cc, body.bcc);
         } else {
-          result = createDraft(body.to, body.subject, body.text);
+          result = createDraft(body.to, body.subject, body.text, body.cc, body.bcc);
         }
         break;
       case "mail:draft:delete":

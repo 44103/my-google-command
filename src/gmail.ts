@@ -22,15 +22,27 @@ function getMail(id: string): { subject: string; from: string; to: string; date:
   };
 }
 
-function createDraft(to: string, subject: string, body: string): { id: string; to: string; subject: string } {
-  const draft = GmailApp.createDraft(to, subject, body);
-  return { id: draft.getId(), to, subject };
+function createDraft(to: string, subject: string, body: string, cc?: string, bcc?: string): { id: string; to: string; subject: string; cc?: string; bcc?: string } {
+  const opts: GoogleAppsScript.Gmail.GmailDraftOptions = {};
+  if (cc) opts.cc = cc;
+  if (bcc) opts.bcc = bcc;
+  const draft = GmailApp.createDraft(to, subject, body, opts);
+  const result: { id: string; to: string; subject: string; cc?: string; bcc?: string } = { id: draft.getId(), to, subject };
+  if (cc) result.cc = cc;
+  if (bcc) result.bcc = bcc;
+  return result;
 }
 
-function updateDraft(draftId: string, to: string, subject: string, body: string): { id: string; to: string; subject: string } {
+function updateDraft(draftId: string, to: string, subject: string, body: string, cc?: string, bcc?: string): { id: string; to: string; subject: string; cc?: string; bcc?: string } {
   const draft = GmailApp.getDraft(draftId);
-  draft.update(to, subject, body);
-  return { id: draft.getId(), to, subject };
+  const opts: GoogleAppsScript.Gmail.GmailDraftOptions = {};
+  if (cc) opts.cc = cc;
+  if (bcc) opts.bcc = bcc;
+  draft.update(to, subject, body, opts);
+  const result: { id: string; to: string; subject: string; cc?: string; bcc?: string } = { id: draft.getId(), to, subject };
+  if (cc) result.cc = cc;
+  if (bcc) result.bcc = bcc;
+  return result;
 }
 
 function deleteDraft(draftId: string): { deleted: true; draft: string } {

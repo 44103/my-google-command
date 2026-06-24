@@ -946,11 +946,15 @@ elif [[ -n "$mail_subaction" ]]; then
   m_to=""
   m_subject=""
   m_id=""
+  m_cc=""
+  m_bcc=""
   for arg in "$@"; do
     case "$arg" in
       to=*)      m_to="${arg#to=}" ;;
       subject=*) m_subject="${arg#subject=}" ;;
       id=*)      m_id="${arg#id=}" ;;
+      cc=*)      m_cc="${arg#cc=}" ;;
+      bcc=*)     m_bcc="${arg#bcc=}" ;;
     esac
   done
 
@@ -964,7 +968,9 @@ elif [[ -n "$mail_subaction" ]]; then
     --arg to "$m_to" \
     --arg subject "$m_subject" \
     --arg text "$m_body" \
-    '{action: "mail:draft", id: $id, to: $to, subject: $subject, text: $text}')
+    --arg cc "$m_cc" \
+    --arg bcc "$m_bcc" \
+    '{action: "mail:draft", id: $id, to: $to, subject: $subject, text: $text, cc: $cc, bcc: $bcc}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
