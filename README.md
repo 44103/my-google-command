@@ -122,10 +122,11 @@ myg help
 
 # --- Spreadsheet ---
 myg spreadsheets                                    # 一覧取得
-myg spreadsheet id=<ID>                             # シート一覧
+myg spreadsheet id=<ID>                             # シート一覧（名前+gid）
 myg spreadsheet "id=<URL>"                          # URL でも OK
 myg spreadsheet create name="タイトル"              # 新規作成
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
+myg sheet "id=<URL with gid>"                       # URL の gid= で自動シート選択
 myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
 myg sheet delete id=<ID> "name=<SHEET_NAME>"        # シートを削除
 myg sheet rename id=<ID> "name=<SHEET_NAME>" "newname=<NEW_NAME>"  # シートをリネーム

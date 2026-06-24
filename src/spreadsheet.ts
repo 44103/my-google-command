@@ -29,18 +29,17 @@ function cleanupTemp(tempId?: string) {
   if (tempId) DriveApp.getFileById(tempId).setTrashed(true);
 }
 
-function listSheets(id: string): { spreadsheetName: string; sheets: string[] } {
+function listSheets(id: string): { spreadsheetName: string; sheets: { name: string; gid: number }[] } {
   const { ss, tempId } = openAsSpreadsheet(id);
   try {
-    return { spreadsheetName: ss.getName(), sheets: ss.getSheets().map((s) => s.getName()) };
+    return { spreadsheetName: ss.getName(), sheets: ss.getSheets().map((s) => ({ name: s.getName(), gid: s.getSheetId() })) };
   } finally { cleanupTemp(tempId); }
 }
 
-function getSheetData(id: string, sheetName: string): { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } {
+function getSheetData(id: string, sheetName: string, gid?: number): { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } {
   const { ss, tempId } = openAsSpreadsheet(id);
   try {
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+    const sheet = findSheet(ss, sheetName, gid);
     const range = sheet.getDataRange();
     const data = range.getValues();
     const bgs = range.getBackgrounds();
@@ -52,18 +51,17 @@ function getSheetData(id: string, sheetName: string): { spreadsheetName: string;
         }
       }
     }
-    const result: { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } = { spreadsheetName: ss.getName(), sheet: sheetName, data };
+    const result: { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } = { spreadsheetName: ss.getName(), sheet: sheet.getName(), data };
     if (colors.length > 0) result.colors = colors;
     return result;
   } finally { cleanupTemp(tempId); }
 }
 
-function writeSheet(id: string, sheetName: string, range: string, csv: string, header?: boolean): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
+function writeSheet(id: string, sheetName: string, range: string, csv: string, header?: boolean, gid?: number): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
   const file = DriveApp.getFileById(id);
   if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) throw new Error("Write is not supported for XLSX files. Use a Google Sheets file.");
   const ss = SpreadsheetApp.openById(id);
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  const sheet = findSheet(ss, sheetName, gid);
   if (!csv.trim()) throw new Error("No data provided");
   const data = Utilities.parseCsv(csv);
   const target = sheet.getRange(range).offset(0, 0, data.length, data[0].length);
@@ -104,22 +102,22 @@ function createSheet(id: string, sheetName: string): { spreadsheetName: string; 
   return { spreadsheetName: ss.getName(), sheet: sheetName };
 }
 
-function deleteSheet(id: string, sheetName: string): { spreadsheetName: string; deleted: string } {
+function deleteSheet(id: string, sheetName: string, gid?: number): { spreadsheetName: string; deleted: string } {
   const ss = SpreadsheetApp.openById(id);
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  const sheet = findSheet(ss, sheetName, gid);
   if (ss.getSheets().length <= 1) throw new Error("Cannot delete the only sheet");
+  const name = sheet.getName();
   ss.deleteSheet(sheet);
-  return { spreadsheetName: ss.getName(), deleted: sheetName };
+  return { spreadsheetName: ss.getName(), deleted: name };
 }
 
-function renameSheet(id: string, sheetName: string, newName: string): { spreadsheetName: string; oldName: string; newName: string } {
+function renameSheet(id: string, sheetName: string, newName: string, gid?: number): { spreadsheetName: string; oldName: string; newName: string } {
   const ss = SpreadsheetApp.openById(id);
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`Sheet "${sheetName}" not found`);
+  const sheet = findSheet(ss, sheetName, gid);
   if (ss.getSheetByName(newName)) throw new Error(`Sheet "${newName}" already exists`);
+  const oldName = sheet.getName();
   sheet.setName(newName);
-  return { spreadsheetName: ss.getName(), oldName: sheetName, newName };
+  return { spreadsheetName: ss.getName(), oldName, newName };
 }
 
 function createSpreadsheet(name: string): { id: string; name: string; url: string } {

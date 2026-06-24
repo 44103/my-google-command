@@ -32,9 +32,10 @@ Actions:
   token                         Show auth URL (for non-interactive use)
   token <TOKEN>                 Save token directly
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
-  spreadsheet id=<ID or URL>    List sheets in a spreadsheet
+  spreadsheet id=<ID or URL>    List sheets in a spreadsheet (name+gid)
   spreadsheet create name="TITLE"  Create new spreadsheet
   sheet id=<ID or URL> name=<SHEET>  Get sheet data
+  sheet "id=<URL with gid>"     Get sheet data (auto-select by gid)
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet delete id=<ID or URL> name=<SHEET>  Delete a sheet
   sheet rename id=<ID or URL> name=<SHEET> newname=<NEW>  Rename a sheet

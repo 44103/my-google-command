@@ -29,7 +29,7 @@ function doGet(
         result = listSheets(resolveId(e.parameter));
         break;
       case "sheet":
-        result = getSheetData(resolveId(e.parameter), e.parameter.name);
+        result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter));
         break;
       case "docs":
         result = listDocs(parseInt(e.parameter.max || "20"));
@@ -183,16 +183,16 @@ function doPost(
         result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
         break;
       case "sheet:write":
-        result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true);
+        result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true, resolveGid(body));
         break;
       case "sheet:create":
         result = createSheet(resolveId(body), body.name);
         break;
       case "sheet:delete":
-        result = deleteSheet(resolveId(body), body.name);
+        result = deleteSheet(resolveId(body), body.name, resolveGid(body));
         break;
       case "sheet:rename":
-        result = renameSheet(resolveId(body), body.name, body.newName);
+        result = renameSheet(resolveId(body), body.name, body.newName, resolveGid(body));
         break;
       case "spreadsheet:create":
         result = createSpreadsheet(body.name);
