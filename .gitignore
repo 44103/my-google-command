@@ -1,8 +1,11 @@
 node_modules/
 dist/
 .clasp.json
+.clasprc.json
 yarn-error.log
 *.log
 .env
 .token
 .permission.json
+package-lock.json
+*.code-workspace

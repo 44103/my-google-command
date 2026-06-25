@@ -126,6 +126,10 @@ myg spreadsheet id=<ID>                             # シート一覧（名前+g
 myg spreadsheet "id=<URL>"                          # URL でも OK
 myg spreadsheet create name="タイトル"              # 新規作成
 myg sheet id=<ID> "name=<SHEET_NAME>"               # シートデータ取得
+myg sheet id=<ID> "name=<SHEET_NAME>" range=A1:D100  # 範囲指定でデータ取得
+myg sheet id=<ID> "name=<SHEET_NAME>" rows=5         # 先頭5行のみ取得（ヘッダ確認用）
+myg sheet id=<ID> "name=<SHEET_NAME>" colors=false   # 背景色情報を省略
+myg sheet id=<ID> "name=<SHEET_NAME>" range=A1:D100 rows=10 colors=false  # 組み合わせ
 myg sheet "id=<URL with gid>"                       # URL の gid= で自動シート選択
 myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
 myg sheet delete id=<ID> "name=<SHEET_NAME>"        # シートを削除

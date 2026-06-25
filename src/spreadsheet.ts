@@ -36,23 +36,45 @@ function listSheets(id: string): { spreadsheetName: string; sheets: { name: stri
   } finally { cleanupTemp(tempId); }
 }
 
-function getSheetData(id: string, sheetName: string, gid?: number): { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } {
+function getSheetData(id: string, sheetName: string, gid?: number, rangeA1?: string, rows?: number, includeColors = true): { spreadsheetName: string; sheet: string; range: string; data: unknown[][]; colors?: { cell: string; color: string }[]; warning?: string } {
   const { ss, tempId } = openAsSpreadsheet(id);
   try {
     const sheet = findSheet(ss, sheetName, gid);
-    const range = sheet.getDataRange();
+    const effectiveRows = rows && rows > 0 ? rows : undefined;
+    let range: GoogleAppsScript.Spreadsheet.Range;
+    if (rangeA1) {
+      try {
+        range = sheet.getRange(rangeA1);
+      } catch (e) {
+        throw new Error(`Invalid range "${rangeA1}": ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else if (effectiveRows) {
+      const lastCol = sheet.getLastColumn();
+      const lastRow = sheet.getLastRow();
+      range = sheet.getRange(1, 1, Math.min(effectiveRows, lastRow || 1), lastCol || 1);
+    } else {
+      range = sheet.getDataRange();
+    }
+    if (effectiveRows && rangeA1) {
+      range = range.offset(0, 0, Math.min(effectiveRows, range.getNumRows()), range.getNumColumns());
+    }
     const data = range.getValues();
-    const bgs = range.getBackgrounds();
-    const colors: { cell: string; color: string }[] = [];
-    for (let row = 0; row < bgs.length; row++) {
-      for (let col = 0; col < bgs[row].length; col++) {
-        if (bgs[row][col] && bgs[row][col] !== "#ffffff") {
-          colors.push({ cell: range.getCell(row + 1, col + 1).getA1Notation(), color: bgs[row][col] });
+    const result: { spreadsheetName: string; sheet: string; range: string; data: unknown[][]; colors?: { cell: string; color: string }[]; warning?: string } = { spreadsheetName: ss.getName(), sheet: sheet.getName(), range: range.getA1Notation(), data };
+    if (data.length > 10000) {
+      result.warning = `Large result: ${data.length} rows returned. Consider narrowing the range.`;
+    }
+    if (includeColors) {
+      const bgs = range.getBackgrounds();
+      const colors: { cell: string; color: string }[] = [];
+      for (let row = 0; row < bgs.length; row++) {
+        for (let col = 0; col < bgs[row].length; col++) {
+          if (bgs[row][col] && bgs[row][col] !== "#ffffff") {
+            colors.push({ cell: range.getCell(row + 1, col + 1).getA1Notation(), color: bgs[row][col] });
+          }
         }
       }
+      if (colors.length > 0) result.colors = colors;
     }
-    const result: { spreadsheetName: string; sheet: string; data: unknown[][]; colors?: { cell: string; color: string }[] } = { spreadsheetName: ss.getName(), sheet: sheet.getName(), data };
-    if (colors.length > 0) result.colors = colors;
     return result;
   } finally { cleanupTemp(tempId); }
 }

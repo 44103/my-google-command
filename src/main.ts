@@ -29,7 +29,7 @@ function doGet(
         result = listSheets(resolveId(e.parameter));
         break;
       case "sheet":
-        result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter));
+        result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter), e.parameter.range, e.parameter.rows ? parseInt(e.parameter.rows) : undefined, e.parameter.colors !== "false");
         break;
       case "docs":
         result = listDocs(parseInt(e.parameter.max || "20"));
