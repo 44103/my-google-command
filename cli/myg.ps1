@@ -39,6 +39,7 @@ Actions:
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
   sheet delete id=<ID or URL> name=<SHEET>  Delete a sheet
   sheet rename id=<ID or URL> name=<SHEET> newname=<NEW>  Rename a sheet
+  sheet lastrow id=<ID or URL> name=<SHEET>  Get last row number
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
     Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
     Escape literal braces: {{ and }}
@@ -651,6 +652,13 @@ switch ($action) {
             header = (Get-Val "header")
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Sheet lastrow (GET) ---
+    { $_ -eq "sheet" -and $subaction -eq "lastrow" } {
+        $q = @{ action = "sheet:lastrow"; id = Get-Val "id"; name = Get-Val "name" }
+        Format-Output (Invoke-Api -Method GET -Query $q)
         break
     }
 

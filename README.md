@@ -134,6 +134,7 @@ myg sheet "id=<URL with gid>"                       # URL の gid= で自動シ�
 myg sheet create id=<ID> "name=<SHEET_NAME>"        # 新しいシートを作成
 myg sheet delete id=<ID> "name=<SHEET_NAME>"        # シートを削除
 myg sheet rename id=<ID> "name=<SHEET_NAME>" "newname=<NEW_NAME>"  # シートをリネーム
+myg sheet lastrow id=<ID> "name=<SHEET_NAME>"                       # 最終行番号を取得
 echo "A,B,C" | myg sheet write id=<ID> "name=<SHEET_NAME>"          # CSV データ書き込み
 cat data.csv | myg sheet write id=<ID> "name=<SHEET_NAME>" range=B2  # 範囲指定で書き込み
 echo "名前,部署" | myg sheet write id=<ID> "name=<SHEET_NAME>" header=true  # 1行目をヘッダ化（太字+背景色+固定）

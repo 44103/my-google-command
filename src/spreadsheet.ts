@@ -79,6 +79,14 @@ function getSheetData(id: string, sheetName: string, gid?: number, rangeA1?: str
   } finally { cleanupTemp(tempId); }
 }
 
+function getSheetLastRow(id: string, sheetName: string, gid?: number): { spreadsheetName: string; sheet: string; lastRow: number } {
+  const { ss, tempId } = openAsSpreadsheet(id);
+  try {
+    const sheet = findSheet(ss, sheetName, gid);
+    return { spreadsheetName: ss.getName(), sheet: sheet.getName(), lastRow: sheet.getLastRow() };
+  } finally { cleanupTemp(tempId); }
+}
+
 function writeSheet(id: string, sheetName: string, range: string, csv: string, header?: boolean, gid?: number): { spreadsheetName: string; sheet: string; range: string; rows: number; cols: number } {
   const file = DriveApp.getFileById(id);
   if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) throw new Error("Write is not supported for XLSX files. Use a Google Sheets file.");

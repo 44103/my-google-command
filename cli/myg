@@ -33,6 +33,7 @@ Actions:
   sheet id=<ID or URL> name=<SHEET> [range=A1:D100] [rows=N] [colors=false]  Get sheet data
   sheet "id=<URL with gid>"     Get sheet data (auto-select by gid)
   sheet create id=<ID or URL> name=<SHEET>  Create new sheet
+  sheet lastrow id=<ID or URL> name=<SHEET>  Get last row number
   sheet write id=<ID or URL> name=<SHEET> [range=A1]  Write CSV data from stdin
     Rich text: {red}text{/red} {blue} {green} {bold} {italic} (combinable: {red,bold})
     Escape literal braces: {{ and }}
@@ -349,6 +350,7 @@ sheet_write=""
 sheet_create=""
 sheet_delete=""
 sheet_rename=""
+sheet_lastrow=""
 sheet_notes=""
 sheet_note_set=""
 sheet_note_clear=""
@@ -359,6 +361,7 @@ if [[ "$action" == "sheet" && $# -gt 0 ]]; then
     create)     sheet_create="1"; shift ;;
     delete)     sheet_delete="1"; shift ;;
     rename)     sheet_rename="1"; shift ;;
+    lastrow)    sheet_lastrow="1"; shift ;;
     notes)      sheet_notes="1"; shift ;;
     note)
       shift
@@ -1095,6 +1098,21 @@ elif [[ -n "$sheet_rename" ]]; then
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$json_body" "$BASE")
+elif [[ -n "$sheet_lastrow" ]]; then
+  sl_id=""
+  sl_name=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)   sl_id="${arg#id=}" ;;
+      name=*) sl_name="${arg#name=}" ;;
+    esac
+  done
+  sl_id=$(resolve_id "$sl_id")
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=sheet:lastrow")
+  curl_args+=(--data-urlencode "id=${sl_id}")
+  curl_args+=(--data-urlencode "name=${sl_name}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 elif [[ -n "$sheet_notes" ]]; then
   sn_id=""
   sn_name=""

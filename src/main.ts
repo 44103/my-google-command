@@ -31,6 +31,9 @@ function doGet(
       case "sheet":
         result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter), e.parameter.range, e.parameter.rows ? parseInt(e.parameter.rows) : undefined, e.parameter.colors !== "false");
         break;
+      case "sheet:lastrow":
+        result = getSheetLastRow(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter));
+        break;
       case "docs":
         result = listDocs(parseInt(e.parameter.max || "20"));
         break;
