@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Stop"
 
+# Ensure execution policy allows profile loading
+if ((Get-ExecutionPolicy -Scope CurrentUser) -eq "Restricted") {
+    Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    Write-Host "Set execution policy to RemoteSigned (CurrentUser)." -ForegroundColor Yellow
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 $Ps1Path = Join-Path $ProjectDir "cli\myg.ps1"
