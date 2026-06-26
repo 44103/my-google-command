@@ -37,15 +37,16 @@ function resolveColor(color?: string): string | undefined {
   throw new Error(`Unknown color "${color}". Available: ${names}`);
 }
 
-function createEvent(calId: string, title: string, start: string, end: string, location?: string, color?: string): { id: string; title: string; start: string; end: string } {
+function createEvent(calId: string, title: string, start: string, end: string, location?: string, color?: string, description?: string): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.createEvent(title, new Date(start), new Date(end), location ? { location } : {});
   const colorId = resolveColor(color);
   if (colorId) ev.setColor(colorId);
+  if (description !== undefined) ev.setDescription(description);
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 
-function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string; color?: string }): { id: string; title: string; start: string; end: string } {
+function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string; color?: string; description?: string }): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.getEventById(eventId);
   if (!ev) throw new Error("Event not found: " + eventId);
@@ -56,6 +57,7 @@ function updateEvent(calId: string, eventId: string, opts: { title?: string; sta
   if (opts.location) ev.setLocation(opts.location);
   const colorId = resolveColor(opts.color);
   if (colorId) ev.setColor(colorId);
+  if (opts.description !== undefined) ev.setDescription(opts.description);
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 

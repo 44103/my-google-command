@@ -128,8 +128,8 @@ Actions:
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
-  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>]  Update event
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
     Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
@@ -237,10 +237,7 @@ function Format-Output {
             if ($Response.TrimStart().StartsWith('[')) {
                 $items = @($parsed) | ForEach-Object { $_ | ConvertTo-Json -Depth 20 -Compress }
                 "[
-  " + (($items | ForEach-Object { ($_ | ConvertFrom-Json | ConvertTo-Json -Depth 20) -replace "
-", "
-  " }) -join ",
-  ") + "
+  " + (($items | ForEach-Object { ($_ | ConvertFrom-Json | ConvertTo-Json -Depth 20) -replace "`n", "`n  " }) -join ",`n  ") + "
 ]"
             } else {
                 $parsed | ConvertTo-Json -Depth 20
@@ -584,6 +581,7 @@ switch ($action) {
             action = "event:$subaction"; id = Get-Val "id"; event = Get-Val "event"
             title = Get-Val "title"; start = Get-Val "start"; end = Get-Val "end"
             location = Get-Val "location"; color = Get-Val "color"
+            description = Get-Val "description"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break
