@@ -89,7 +89,7 @@ function createEvent(calId: string, title: string, start: string, end: string, l
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 
-function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string; color?: string; description?: string }): { id: string; title: string; start: string; end: string } {
+function updateEvent(calId: string, eventId: string, opts: { title?: string; start?: string; end?: string; location?: string; color?: string; description?: string; guests?: string; visibility?: string; reminders?: string }): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.getEventById(eventId);
   if (!ev) throw new Error("Event not found: " + eventId);
@@ -101,6 +101,21 @@ function updateEvent(calId: string, eventId: string, opts: { title?: string; sta
   const colorId = resolveColor(opts.color);
   if (colorId) ev.setColor(colorId);
   if (opts.description !== undefined) ev.setDescription(opts.description);
+  if (opts.guests !== undefined) {
+    // Remove all existing guests, then add new ones (full replace)
+    for (const g of ev.getGuestList(true)) ev.removeGuest(g.getEmail());
+    if (opts.guests) {
+      for (const email of opts.guests.split(",").map(e => e.trim())) ev.addGuest(email);
+    }
+  }
+  if (opts.visibility) {
+    const vis = opts.visibility.toUpperCase() as "DEFAULT" | "PUBLIC" | "PRIVATE" | "CONFIDENTIAL";
+    ev.setVisibility(CalendarApp.Visibility[vis]);
+  }
+  if (opts.reminders) {
+    ev.removeAllReminders();
+    for (const min of opts.reminders.split(",").map(m => parseInt(m.trim()))) ev.addPopupReminder(min);
+  }
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 

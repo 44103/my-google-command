@@ -129,7 +129,7 @@ Actions:
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
   event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"]  Update event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
     Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato

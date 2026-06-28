@@ -297,6 +297,10 @@ myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10
 myg event update id=self event=<EVENT_ID> title="新しいタイトル"  # イベント更新
 myg event update id=self event=<EVENT_ID> color=peacock           # 色変更
 myg event update id=self event=<EVENT_ID> description="更新された議題"  # 詳細説明を更新
+myg event update id=self event=<EVENT_ID> guests=a@example.com,b@example.com  # ゲスト変更（全置き換え）
+myg event update id=self event=<EVENT_ID> guests=                 # ゲスト全削除
+myg event update id=self event=<EVENT_ID> visibility=private      # 非公開に変更
+myg event update id=self event=<EVENT_ID> reminders=5,15          # 通知変更
 myg event delete id=self event=<EVENT_ID>                        # イベント削除
 myg event freebusy emails=a@example.com,b@example.com                    # 空き時間検索（今日、30分枠）
 myg event freebusy emails=a@example.com,b@example.com from=2026-04-14 to=2026-04-18 duration=60  # 日付範囲・時間枠指定

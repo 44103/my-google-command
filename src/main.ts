@@ -232,7 +232,7 @@ function doPost(
         result = createEvent(body.id, body.title, body.start, body.end, body.location, body.color, body.description, body.guests, body.visibility, body.reminders);
         break;
       case "event:update":
-        result = updateEvent(body.id, body.event, { title: body.title, start: body.start, end: body.end, location: body.location, color: body.color, description: body.description });
+        result = updateEvent(body.id, body.event, { title: body.title, start: body.start, end: body.end, location: body.location, color: body.color, description: body.description, guests: body.guests, visibility: body.visibility, reminders: body.reminders });
         break;
       case "event:delete":
         result = deleteEvent(body.id, body.event);
