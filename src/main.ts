@@ -64,6 +64,9 @@ function doGet(
       case "events":
         result = listEvents(e.parameter.id, e.parameter.from, e.parameter.to);
         break;
+      case "event":
+        result = getEvent(e.parameter.id, e.parameter.event);
+        break;
       case "event:freebusy":
         result = findFreeSlots(e.parameter.emails, e.parameter.from, e.parameter.to, e.parameter.duration);
         break;

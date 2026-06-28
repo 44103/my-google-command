@@ -297,6 +297,8 @@ myg event update id=self event=<EVENT_ID> description="更新された議題"  #
 myg event delete id=self event=<EVENT_ID>                        # イベント削除
 myg event freebusy emails=a@example.com,b@example.com                    # 空き時間検索（今日、30分枠）
 myg event freebusy emails=a@example.com,b@example.com from=2026-04-14 to=2026-04-18 duration=60  # 日付範囲・時間枠指定
+myg event rooms                                                          # 会議室一覧
+myg event rooms q="会議室A"                                               # 会議室名で検索
 ```
 
 #### イベントの色（color）

@@ -135,6 +135,7 @@ Actions:
     Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
+  event rooms [q=<QUERY>]       List meeting rooms (filter by name)
   gas info script=<SCRIPT_ID or URL>    GAS project info
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
@@ -571,6 +572,14 @@ switch ($action) {
         Format-Output (Invoke-Api -Method GET -Query @{
             action = "event:freebusy"; emails = Get-Val "emails"
             from = Get-Val "from"; to = Get-Val "to"; duration = Get-Val "duration"
+        })
+        break
+    }
+
+    # --- Event rooms (GET) ---
+    { $_ -eq "event" -and $subaction -eq "rooms" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "rooms"; q = Get-Val "q"
         })
         break
     }
