@@ -65,12 +65,27 @@ function resolveColor(color?: string): string | undefined {
   throw new Error(`Unknown color "${color}". Available: ${names}`);
 }
 
-function createEvent(calId: string, title: string, start: string, end: string, location?: string, color?: string, description?: string): { id: string; title: string; start: string; end: string } {
+function createEvent(calId: string, title: string, start: string, end: string, location?: string, color?: string, description?: string, guests?: string, visibility?: string, reminders?: string): { id: string; title: string; start: string; end: string } {
   const cal = resolveCal(calId);
   const ev = cal.createEvent(title, new Date(start), new Date(end), location ? { location } : {});
   const colorId = resolveColor(color);
   if (colorId) ev.setColor(colorId);
   if (description !== undefined) ev.setDescription(description);
+  if (guests) {
+    for (const email of guests.split(",").map(e => e.trim())) {
+      ev.addGuest(email);
+    }
+  }
+  if (visibility) {
+    const vis = visibility.toUpperCase() as "DEFAULT" | "PUBLIC" | "PRIVATE" | "CONFIDENTIAL";
+    ev.setVisibility(CalendarApp.Visibility[vis]);
+  }
+  if (reminders) {
+    ev.removeAllReminders();
+    for (const min of reminders.split(",").map(m => parseInt(m.trim()))) {
+      ev.addPopupReminder(min);
+    }
+  }
   return { id: ev.getId(), title: ev.getTitle(), start: ev.getStartTime().toISOString(), end: ev.getEndTime().toISOString() };
 }
 

@@ -229,7 +229,7 @@ function doPost(
         result = deleteTask(body.id, body.task);
         break;
       case "event:create":
-        result = createEvent(body.id, body.title, body.start, body.end, body.location, body.color, body.description);
+        result = createEvent(body.id, body.title, body.start, body.end, body.location, body.color, body.description, body.guests, body.visibility, body.reminders);
         break;
       case "event:update":
         result = updateEvent(body.id, body.event, { title: body.title, start: body.start, end: body.end, location: body.location, color: body.color, description: body.description });

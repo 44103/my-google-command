@@ -291,6 +291,9 @@ myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10
 myg event create id=<CAL_ID> title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 location="会議室A"
 myg event create id=self title="英会話" start=2026-04-10T16:00:00 end=2026-04-10T16:30:00 color=tomato  # 色指定
 myg event create id=self title="定例" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 description="議題: Q2振り返り"  # 詳細説明付き
+myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 guests=a@example.com,b@example.com  # ゲスト招待
+myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 visibility=private  # 非公開
+myg event create id=self title="会議" start=2026-04-10T10:00:00 end=2026-04-10T11:00:00 reminders=10,30  # 10分前・30分前に通知
 myg event update id=self event=<EVENT_ID> title="新しいタイトル"  # イベント更新
 myg event update id=self event=<EVENT_ID> color=peacock           # 色変更
 myg event update id=self event=<EVENT_ID> description="更新された議題"  # 詳細説明を更新
