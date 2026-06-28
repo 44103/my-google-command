@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .clasp.json
+environments/*/.clasp.json
 .clasprc.json
 yarn-error.log
 *.log

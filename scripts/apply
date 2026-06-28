@@ -4,8 +4,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR/.."
 
-source "$PROJECT_DIR/.env" 2>/dev/null || true
-
 # 引数があれば明示指定、なければブランチ判定
 if [ -n "${1:-}" ]; then
   ENV=$1
@@ -25,15 +23,9 @@ if [ ! -f "$CLASP_DIR/.clasp.json" ]; then
   exit 1
 fi
 
-VERSION=$(node -p "require('$PROJECT_DIR/package.json').version")
+# Build
+"$SCRIPT_DIR/build"
 
+# Push
 cd "$CLASP_DIR"
-if [ "$ENV" = "prod" ]; then
-  if [ -z "${DEPLOY_ID:-}" ]; then
-    echo "Error: DEPLOY_ID is required for production deploy" >&2
-    exit 1
-  fi
-  npx clasp deploy -i "$DEPLOY_ID" -d "v${VERSION}"
-else
-  npx clasp deploy ${DEV_DEPLOY_ID:+-i "$DEV_DEPLOY_ID"} -d "dev v${VERSION}"
-fi
+npx clasp push
