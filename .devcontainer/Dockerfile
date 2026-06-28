@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:24
 
 RUN export DEBIAN_FRONTEND="noninteractive" && \
     apt-get update && apt-get -y install --no-install-recommends \

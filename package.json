@@ -2,6 +2,7 @@
   "name": "my-google-api",
   "version": "1.0.0",
   "description": "Google Apps Script project",
+  "packageManager": "yarn@4.13.0",
   "scripts": {
     "build": "./scripts/build",
     "apply": "./scripts/apply",
