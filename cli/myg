@@ -131,13 +131,14 @@ Actions:
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
-  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"]  Update event
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
     Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
+  event rooms [q=<QUERY>]       List meeting rooms (filter by name)
   gas info script=<SCRIPT_ID or URL>    GAS project info
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
@@ -475,7 +476,7 @@ fi
 event_subaction=""
 if [[ "$action" == "event" && $# -gt 0 ]]; then
   case "$1" in
-    create|freebusy|update|delete) event_subaction="$1"; shift ;;
+    create|freebusy|update|delete|rooms) event_subaction="$1"; shift ;;
   esac
 fi
 
@@ -907,6 +908,15 @@ elif [[ "$event_subaction" == "freebusy" ]]; then
     -G --data-urlencode "action=event:freebusy" --data-urlencode "emails=${ev_emails}" \
     --data-urlencode "from=${ev_from}" --data-urlencode "to=${ev_to}" \
     --data-urlencode "duration=${ev_duration}" "$BASE")
+elif [[ "$event_subaction" == "rooms" ]]; then
+  ev_q=""
+  for arg in "$@"; do
+    case "$arg" in
+      q=*) ev_q="${arg#q=}" ;;
+    esac
+  done
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=rooms" --data-urlencode "q=${ev_q}" "$BASE")
 elif [[ -n "$event_subaction" ]]; then
   ev_id=""
   ev_title=""
@@ -916,6 +926,9 @@ elif [[ -n "$event_subaction" ]]; then
   ev_event=""
   ev_color=""
   ev_description=""
+  ev_guests=""
+  ev_visibility=""
+  ev_reminders=""
   for arg in "$@"; do
     case "$arg" in
       id=*)          ev_id="${arg#id=}" ;;
@@ -926,6 +939,9 @@ elif [[ -n "$event_subaction" ]]; then
       event=*)       ev_event="${arg#event=}" ;;
       color=*)       ev_color="${arg#color=}" ;;
       description=*) ev_description="${arg#description=}" ;;
+      guests=*)      ev_guests="${arg#guests=}" ;;
+      visibility=*)  ev_visibility="${arg#visibility=}" ;;
+      reminders=*)   ev_reminders="${arg#reminders=}" ;;
     esac
   done
 
@@ -939,7 +955,10 @@ elif [[ -n "$event_subaction" ]]; then
     --arg location "$ev_location" \
     --arg color "$ev_color" \
     --arg description "$ev_description" \
-    '{action: ("event:" + $sub), id: $id, event: $event, title: $title, start: $start, end: $end, location: $location, color: $color, description: $description}')
+    --arg guests "$ev_guests" \
+    --arg visibility "$ev_visibility" \
+    --arg reminders "$ev_reminders" \
+    '{action: ("event:" + $sub), id: $id, event: $event, title: $title, start: $start, end: $end, location: $location, color: $color, description: $description, guests: $guests, visibility: $visibility, reminders: $reminders}')
 
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \

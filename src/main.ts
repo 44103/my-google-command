@@ -64,6 +64,9 @@ function doGet(
       case "events":
         result = listEvents(e.parameter.id, e.parameter.from, e.parameter.to);
         break;
+      case "event":
+        result = getEvent(e.parameter.id, e.parameter.event);
+        break;
       case "event:freebusy":
         result = findFreeSlots(e.parameter.emails, e.parameter.from, e.parameter.to, e.parameter.duration);
         break;
@@ -226,10 +229,10 @@ function doPost(
         result = deleteTask(body.id, body.task);
         break;
       case "event:create":
-        result = createEvent(body.id, body.title, body.start, body.end, body.location, body.color, body.description);
+        result = createEvent(body.id, body.title, body.start, body.end, body.location, body.color, body.description, body.guests, body.visibility, body.reminders);
         break;
       case "event:update":
-        result = updateEvent(body.id, body.event, { title: body.title, start: body.start, end: body.end, location: body.location, color: body.color, description: body.description });
+        result = updateEvent(body.id, body.event, { title: body.title, start: body.start, end: body.end, location: body.location, color: body.color, description: body.description, guests: body.guests, visibility: body.visibility, reminders: body.reminders });
         break;
       case "event:delete":
         result = deleteEvent(body.id, body.event);

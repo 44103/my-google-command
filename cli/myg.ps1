@@ -128,13 +128,14 @@ Actions:
   contact id=<RESOURCE_NAME>    Get contact detail (relations, externalIds, etc.)
   calendars                     List calendars
   events id=<CAL_ID> [from=YYYY-MM-DD] [to=YYYY-MM-DD]  List events (default: next 7 days)
-  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"]  Create event
-  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"]  Update event
+  event create id=<CAL_ID> title="TITLE" start=<ISO> end=<ISO> [location=<LOC>] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Create event
+  event update id=<CAL_ID> event=<EVENT_ID> [title=...] [start=...] [end=...] [location=...] [color=<COLOR>] [description="DESC"] [guests=<EMAILS>] [visibility=<VIS>] [reminders=<MIN,MIN>]  Update event
   event delete id=<CAL_ID> event=<EVENT_ID>  Delete event
     Note: id=self or omit id to use your default calendar
     Colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
+  event rooms [q=<QUERY>]       List meeting rooms (filter by name)
   gas info script=<SCRIPT_ID or URL>    GAS project info
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
@@ -575,6 +576,14 @@ switch ($action) {
         break
     }
 
+    # --- Event rooms (GET) ---
+    { $_ -eq "event" -and $subaction -eq "rooms" } {
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "rooms"; q = Get-Val "q"
+        })
+        break
+    }
+
     # --- Event create/update/delete (POST) ---
     { $_ -eq "event" -and $subaction -in "create", "update", "delete" } {
         $body = @{
@@ -582,6 +591,8 @@ switch ($action) {
             title = Get-Val "title"; start = Get-Val "start"; end = Get-Val "end"
             location = Get-Val "location"; color = Get-Val "color"
             description = Get-Val "description"
+            guests = Get-Val "guests"; visibility = Get-Val "visibility"
+            reminders = Get-Val "reminders"
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

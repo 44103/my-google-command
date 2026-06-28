@@ -15,10 +15,14 @@ fi
 cd "$TARGET_DIR"
 
 if [ "$ENV" = "prod" ]; then
-  npx clasp create --title my-google-api --type standalone --rootDir ../../dist
+  npx clasp create --title my-google-api --type standalone
 else
-  npx clasp create --title "my-google-api-dev" --type standalone --rootDir ../../dist
+  npx clasp create --title "my-google-api-dev" --type standalone
 fi
+
+# clasp creates .clasp.json in cwd; add rootDir pointing to dist/
+SCRIPT_ID=$(python3 -c "import json; print(json.load(open('.clasp.json'))['scriptId'])")
+echo "{\"scriptId\":\"$SCRIPT_ID\",\"rootDir\":\"../../dist\"}" > .clasp.json
 
 echo ""
 echo "Created: $TARGET_DIR/.clasp.json"
