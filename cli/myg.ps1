@@ -17,6 +17,8 @@ Get-Content $EnvFile | ForEach-Object {
     }
 }
 if (-not $DEPLOY_ID) { Write-Error "DEPLOY_ID not set in .env"; exit 1 }
+if (-not (Get-Variable -Name GW_DOMAIN -Scope Script -ErrorAction SilentlyContinue)) { $GW_DOMAIN = "" }
+if (-not (Get-Variable -Name DEV_DEPLOY_ID -Scope Script -ErrorAction SilentlyContinue)) { $DEV_DEPLOY_ID = "" }
 
 $Base = "https://script.google.com/macros/s/$DEPLOY_ID/exec"
 
