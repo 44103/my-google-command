@@ -27,15 +27,61 @@ cp .env.example .env
 ## 開発フロー
 
 ```bash
-# ビルド + GAS にプッシュ
+# ビルド（環境非依存、dist/ に出力）
+yarn build
+
+# ビルド + GAS にプッシュ（ブランチに応じて dev/prod を自動判定）
 yarn apply
 
-# デプロイ（.env に DEPLOY_ID があれば既存デプロイを更新）
+# デプロイ（ブランチに応じて dev/prod を自動判定）
 yarn deploy
 ```
 
-初回デプロイ後、出力される DEPLOY_ID を `.env` に記入してください。
+### 環境の自動判定
+
+`yarn apply` / `yarn deploy` はブランチを見て環境を切り替えます：
+
+- `main` → prod（`environments/prod/.clasp.json` + `DEPLOY_ID`）
+- それ以外 → dev（`environments/dev/.clasp.json` + `DEV_DEPLOY_ID`）
+
+明示的に環境を指定することもできます：
+
+```bash
+yarn apply:dev     # 常に dev
+yarn apply:prod    # 常に prod
+yarn deploy:dev    # 常に dev
+yarn deploy:prod   # 常に prod
+```
+
+### 開発用デプロイのセットアップ（初回のみ）
+
+各開発者が自分の GAS プロジェクトを持ちます。
+
+1. GAS プロジェクトを作成
+
+```bash
+yarn setup
+```
+
+`environments/dev/.clasp.json` が生成されます。
+
+2. 初回デプロイ
+
+```bash
+yarn deploy:dev
+```
+
+出力される DEPLOY_ID を `.env` の `DEV_DEPLOY_ID` に記入してください。
 以降は `yarn deploy` で同じ URL のまま更新されます。
+
+3. CLI の接続先
+
+`.env` に `DEV_DEPLOY_ID` が設定されている場合、`myg` コマンドはブランチに応じて接続先を自動で切り替えます。
+
+- `main` ブランチ → 本番（`DEPLOY_ID`）
+- それ以外のブランチ → 開発（`DEV_DEPLOY_ID`）
+
+リポジトリ外から実行した場合や `DEV_DEPLOY_ID` が未設定の場合は、常に本番に接続します。
 
 ## スコープの承認
 
@@ -63,12 +109,17 @@ yarn open  # GAS エディタを開く
 | コマンド | 説明 |
 |----------|------|
 | `yarn build` | TypeScript ビルド + appsscript.json 生成 |
-| `yarn push` | GAS にプッシュ |
-| `yarn apply` | ビルド + プッシュ |
-| `yarn deploy` | デプロイ（既存 ID があれば更新） |
+| `yarn apply` | ビルド + GAS にプッシュ（ブランチで環境自動判定） |
+| `yarn apply:dev` | ビルド + dev 環境にプッシュ |
+| `yarn apply:prod` | ビルド + prod 環境にプッシュ |
+| `yarn deploy` | デプロイ（ブランチで環境自動判定） |
+| `yarn deploy:dev` | dev 環境にデプロイ |
+| `yarn deploy:prod` | prod 環境にデプロイ |
 | `yarn open` | GAS エディタを開く |
 | `yarn signin` | clasp ログイン |
-| `yarn setup` | GAS プロジェクト新規作成 |
+| `yarn setup` | GAS プロジェクト新規作成（dev） |
+| `yarn setup:dev` | dev 用 GAS プロジェクト作成 |
+| `yarn setup:prod` | prod 用 GAS プロジェクト作成 |
 
 ## ディレクトリ構成
 
@@ -77,9 +128,15 @@ yarn open  # GAS エディタを開く
 │   ├── myg              # CLI コマンド（bash + curl + jq）
 │   ├── myg.ps1          # CLI コマンド（PowerShell 版）
 │   └── myg.cmd          # Windows 用 cmd ラッパー
+├── environments/
+│   ├── dev/
+│   │   └── .clasp.json  # 開発用 scriptId（各自、.gitignore）
+│   └── prod/
+│       └── .clasp.json  # 本番用 scriptId（.gitignore）
 ├── scripts/
 │   ├── build            # ビルドスクリプト
-│   ├── deploy           # デプロイスクリプト
+│   ├── apply            # ビルド + プッシュ（環境分岐）
+│   ├── deploy           # デプロイスクリプト（環境分岐）
 │   ├── install          # ユーザー向けインストーラー（macOS / Linux）
 │   └── install.ps1      # ユーザー向けインストーラー（Windows）
 ├── src/

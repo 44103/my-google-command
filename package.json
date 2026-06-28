@@ -4,10 +4,15 @@
   "description": "Google Apps Script project",
   "scripts": {
     "build": "./scripts/build",
-    "push": "clasp push",
-    "apply": "yarn build && yarn push",
-    "setup": "clasp create --title my-google-api --type standalone --rootDir ./dist",
+    "apply": "./scripts/apply",
+    "apply:dev": "./scripts/apply dev",
+    "apply:prod": "./scripts/apply prod",
     "deploy": "./scripts/deploy",
+    "deploy:dev": "./scripts/deploy dev",
+    "deploy:prod": "./scripts/deploy prod",
+    "setup": "./scripts/setup",
+    "setup:dev": "./scripts/setup dev",
+    "setup:prod": "./scripts/setup prod",
     "open": "clasp open",
     "signin": "clasp login"
   },

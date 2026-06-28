@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV=${1:-dev}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR/.."
+TARGET_DIR="$PROJECT_DIR/environments/$ENV"
+
+if [ -f "$TARGET_DIR/.clasp.json" ]; then
+  echo "Error: $TARGET_DIR/.clasp.json already exists." >&2
+  echo "Remove it first if you want to recreate." >&2
+  exit 1
+fi
+
+cd "$TARGET_DIR"
+
+if [ "$ENV" = "prod" ]; then
+  npx clasp create --title my-google-api --type standalone --rootDir ../../dist
+else
+  npx clasp create --title "my-google-api-dev" --type standalone --rootDir ../../dist
+fi
+
+echo ""
+echo "Created: $TARGET_DIR/.clasp.json"
+echo "Next: run 'yarn deploy:$ENV' to create the initial deployment."
