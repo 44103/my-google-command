@@ -87,6 +87,10 @@ function doGet(
         break;
       case "file":
         result = downloadFile(e.parameter.id);
+        trackFileAccess(e.parameter.id);
+        break;
+      case "file:props":
+        result = getFileProps(resolveId(e.parameter));
         break;
       case "file:share":
         result = listPermissions(resolveId(e.parameter));
@@ -169,6 +173,7 @@ function doPost(
     switch (action) {
       case "doc:create":
         result = createDoc(body.name, body.text, body.format);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "doc:addtab":
         result = addDocTab(resolveId(body), body.name, body.index && body.index !== "" ? parseInt(body.index) : undefined, body.parent || undefined);
@@ -184,12 +189,15 @@ function doPost(
         break;
       case "doc:append":
         result = appendDoc(resolveId(body), body.text, body.format, body.tab);
+        trackFileWrite(resolveId(body));
         break;
       case "doc:overwrite":
         result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
+        trackFileWrite(resolveId(body));
         break;
       case "sheet:write":
         result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true, resolveGid(body));
+        trackFileWrite(resolveId(body));
         break;
       case "sheet:create":
         result = createSheet(resolveId(body), body.name);
@@ -202,6 +210,7 @@ function doPost(
         break;
       case "spreadsheet:create":
         result = createSpreadsheet(body.name);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "task:create":
         result = createTask(body.id, body.title, body.due, body.notes, body.parent);
@@ -273,6 +282,7 @@ function doPost(
           body.isBase64 === "true" || body.isBase64 === true,
           body.mimeType,
         );
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "file:move":
         result = moveFile(body.id, body.folder);
@@ -294,29 +304,36 @@ function doPost(
         break;
       case "file:mkdir":
         result = createFolder(body.name, body.folder);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "slide:create":
         result = body.format === "markdown" && body.text
           ? createSlideFromMarkdown(body.name, body.text)
           : createSlide(body.name);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "slide:addpage":
         result = addSlidePage(resolveId(body));
         break;
       case "slide:addtext":
         result = addSlideText(resolveId(body), body.page, body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:note:set":
         result = setSlideNote(resolveId(body), body.page, body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:note:clear":
         result = clearSlideNote(resolveId(body), body.page);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:overwrite":
         result = overwriteSlideFromMarkdown(resolveId(body), body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "form:create":
         result = createForm(body.name, body.description);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "form:additem":
         result = addFormItem(resolveId(body), body.type, body.title, {

@@ -378,6 +378,12 @@ switch ($action) {
         break
     }
 
+    # --- File props (GET) ---
+    { $_ -eq "file" -and $subaction -eq "props" } {
+        Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = (Get-Val "id") })
+        break
+    }
+
     # --- Mail filters (GET) ---
     { $_ -eq "mail" -and $subaction -eq "filters" } {
         Format-Output (Invoke-Api -Method GET -Query @{ action = "mail:filters" })

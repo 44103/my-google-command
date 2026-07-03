@@ -233,7 +233,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare) file_subaction="$1"; shift ;;
+    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare|props) file_subaction="$1"; shift ;;
   esac
 fi
 
@@ -620,6 +620,9 @@ elif [[ -n "$file_subaction" ]]; then
   elif [[ "$file_subaction" == "history" ]]; then
     response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
       -G --data-urlencode "action=file:history" --data-urlencode "id=${fu_id}" --data-urlencode "max=${fu_max:-20}" "$BASE")
+  elif [[ "$file_subaction" == "props" ]]; then
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:props" --data-urlencode "id=${fu_id}" "$BASE")
   elif [[ "$file_subaction" == "upload" ]]; then
     if [[ -n "$fu_file" ]]; then
       fu_tmp=$(mktemp)

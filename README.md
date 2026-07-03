@@ -208,6 +208,9 @@ myg file shortcut id=<FILE_ID> folder=<FOLDER_ID>   # フォルダ指定でシ�
 myg file history id=<FILE_ID>                       # 変更履歴を取得
 myg file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  # リビジョン間の差分を取得
 
+# --- Drive (トラッキング) ---
+myg file props id=<FILE_ID>                         # myg の操作履歴プロパティを表示
+
 # --- Drive (共有設定) ---
 myg file share id=<FILE_ID>                                          # 共有設定一覧
 myg file share id=<FILE_ID> email=user@example.com role=reader       # ユーザーに共有 (閲覧者)

@@ -157,3 +157,73 @@ function searchFiles(query: string, max = 20): { id: string; name: string; type:
   }
   return result;
 }
+
+function getFileProps(fileId: string): { id: string; name: string; properties: Record<string, string> } {
+  const file = DriveApp.getFileById(fileId);
+  const propList = (Drive as any).Properties.list(fileId, { visibility: "PRIVATE" }) as any;
+  const items: any[] = propList.items || [];
+  const props: Record<string, string> = {};
+  for (const item of items) {
+    props[item.key] = item.value;
+  }
+  return { id: fileId, name: file.getName(), properties: props };
+}
+
+function getCurrentEmail(): { local: string; domain: string } {
+  const about = (Drive as any).About.get({});
+  const email: string = about.user.emailAddress;
+  const [local, domain] = email.split("@");
+  return { local, domain };
+}
+
+function getPrivateProperty(fileId: string, key: string): string | null {
+  try {
+    const prop = (Drive as any).Properties.get(fileId, key, { visibility: "PRIVATE" });
+    return prop.value || null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+function setPrivateProperty(fileId: string, key: string, value: string): void {
+  try {
+    (Drive as any).Properties.update({ key, value, visibility: "PRIVATE" }, fileId, key, { visibility: "PRIVATE" });
+  } catch (_e) {
+    (Drive as any).Properties.insert({ key, value, visibility: "PRIVATE" }, fileId);
+  }
+}
+
+function trackFileAccess(fileId: string): void {
+  // Set acl to 'r' only if acl does not exist yet (don't downgrade)
+  const currentAcl = getPrivateProperty(fileId, "acl");
+  if (!currentAcl) {
+    setPrivateProperty(fileId, "acl", "r");
+    // Record who permitted
+    const { local, domain } = getCurrentEmail();
+    setPrivateProperty(fileId, "permitted_local", local);
+    setPrivateProperty(fileId, "permitted_domain", domain);
+    setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
+  }
+}
+
+function trackFileWrite(fileId: string): void {
+  // Set acl to 'w' if currently 'r' or unset (don't downgrade)
+  const currentAcl = getPrivateProperty(fileId, "acl");
+  if (!currentAcl || currentAcl === "r") {
+    setPrivateProperty(fileId, "acl", "w");
+    // Record who permitted (overwrite = last modifier)
+    const { local, domain } = getCurrentEmail();
+    setPrivateProperty(fileId, "permitted_local", local);
+    setPrivateProperty(fileId, "permitted_domain", domain);
+    setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
+  }
+}
+
+function trackFileCreation(fileId: string): void {
+  setPrivateProperty(fileId, "created", "y");
+  setPrivateProperty(fileId, "acl", "w");
+  const { local, domain } = getCurrentEmail();
+  setPrivateProperty(fileId, "permitted_local", local);
+  setPrivateProperty(fileId, "permitted_domain", domain);
+  setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
+}
