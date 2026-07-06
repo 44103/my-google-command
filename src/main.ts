@@ -29,6 +29,7 @@ function doGet(
         result = listSheets(resolveId(e.parameter));
         break;
       case "sheet":
+        checkAcl(resolveId(e.parameter), "r");
         result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter), e.parameter.range, e.parameter.rows ? parseInt(e.parameter.rows) : undefined, e.parameter.colors !== "false");
         break;
       case "sheet:lastrow":
@@ -38,6 +39,7 @@ function doGet(
         result = listDocs(parseInt(e.parameter.max || "20"));
         break;
       case "doc":
+        checkAcl(resolveId(e.parameter), "r");
         result = getDocContent(resolveId(e.parameter), e.parameter.tab);
         break;
       case "doc:tabs":
@@ -86,6 +88,7 @@ function doGet(
         result = searchFiles(e.parameter.q, parseInt(e.parameter.max || "20"));
         break;
       case "file":
+        checkAcl(e.parameter.id, "r");
         result = downloadFile(e.parameter.id);
         trackFileAccess(e.parameter.id);
         break;
@@ -105,6 +108,7 @@ function doGet(
         result = listSlides(parseInt(e.parameter.max || "20"));
         break;
       case "slide":
+        checkAcl(resolveId(e.parameter), "r");
         result = getSlideContent(resolveId(e.parameter), e.parameter.page);
         break;
       case "slide:notes":
@@ -188,14 +192,17 @@ function doPost(
         result = moveDocTab(resolveId(body), body.tab, parseInt(body.index), body.parent || undefined);
         break;
       case "doc:append":
+        checkAcl(resolveId(body), "w");
         result = appendDoc(resolveId(body), body.text, body.format, body.tab);
         trackFileWrite(resolveId(body));
         break;
       case "doc:overwrite":
+        checkAcl(resolveId(body), "w");
         result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
         trackFileWrite(resolveId(body));
         break;
       case "sheet:write":
+        checkAcl(resolveId(body), "w");
         result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true, resolveGid(body));
         trackFileWrite(resolveId(body));
         break;
@@ -284,6 +291,9 @@ function doPost(
         );
         if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
+      case "file:props:set":
+        result = setFileAcl(resolveId(body), body.value);
+        break;
       case "file:move":
         result = moveFile(body.id, body.folder);
         break;
@@ -313,21 +323,26 @@ function doPost(
         if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "slide:addpage":
+        checkAcl(resolveId(body), "w");
         result = addSlidePage(resolveId(body));
         break;
       case "slide:addtext":
+        checkAcl(resolveId(body), "w");
         result = addSlideText(resolveId(body), body.page, body.text);
         trackFileWrite(resolveId(body));
         break;
       case "slide:note:set":
+        checkAcl(resolveId(body), "w");
         result = setSlideNote(resolveId(body), body.page, body.text);
         trackFileWrite(resolveId(body));
         break;
       case "slide:note:clear":
+        checkAcl(resolveId(body), "w");
         result = clearSlideNote(resolveId(body), body.page);
         trackFileWrite(resolveId(body));
         break;
       case "slide:overwrite":
+        checkAcl(resolveId(body), "w");
         result = overwriteSlideFromMarkdown(resolveId(body), body.text);
         trackFileWrite(resolveId(body));
         break;

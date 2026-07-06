@@ -193,6 +193,30 @@ function setPrivateProperty(fileId: string, key: string, value: string): void {
   }
 }
 
+function checkAcl(fileId: string, mode: "r" | "w"): void {
+  const acl = getPrivateProperty(fileId, "acl");
+  if (acl === "-") {
+    throw new Error("ACCESS_DENIED: This file is blocked by myg property (acl=-)");
+  }
+  if (mode === "w" && acl === "r") {
+    throw new Error("WRITE_DENIED: This file is read-only by myg property (acl=r)");
+  }
+}
+
+function setFileAcl(fileId: string, value: string): { id: string; name: string; acl: string } {
+  const file = DriveApp.getFileById(fileId);
+  const allowed = ["-", "r", "w"];
+  if (!allowed.includes(value)) {
+    throw new Error("Invalid acl value. Allowed: -, r, w");
+  }
+  setPrivateProperty(fileId, "acl", value);
+  const { local, domain } = getCurrentEmail();
+  setPrivateProperty(fileId, "permitted_local", local);
+  setPrivateProperty(fileId, "permitted_domain", domain);
+  setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
+  return { id: fileId, name: file.getName(), acl: value };
+}
+
 function trackFileAccess(fileId: string): void {
   // Set acl to 'r' only if acl does not exist yet (don't downgrade)
   const currentAcl = getPrivateProperty(fileId, "acl");

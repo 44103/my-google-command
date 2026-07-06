@@ -378,9 +378,28 @@ switch ($action) {
         break
     }
 
-    # --- File props (GET) ---
+    # --- File props (GET/SET) ---
     { $_ -eq "file" -and $subaction -eq "props" } {
-        Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = (Get-Val "id") })
+        $setVal = Get-Val "set"
+        if ($setVal) {
+            # Require real terminal (block LLM/pipe execution)
+            if (-not [Environment]::UserInteractive) {
+                Write-Error "ACL change requires interactive terminal"; exit 1
+            }
+            switch ($setVal) {
+                "-" { Write-Host "WARNING: This will DENY all myg access (read & write) to this file." }
+                "r" { Write-Host "This will set the file to READ-ONLY via myg." }
+                "w" { Write-Host "This will set the file to READ+WRITE via myg." }
+                default { Write-Error "Invalid value for set=. Allowed: -, r, w"; exit 1 }
+            }
+            $confirm = Read-Host "Proceed? [y/N]"
+            if ($confirm -ne "y" -and $confirm -ne "Y") {
+                Write-Host "Cancelled."; exit 0
+            }
+            Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = (Get-Val "id"); value = $setVal })
+        } else {
+            Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = (Get-Val "id") })
+        }
         break
     }
 

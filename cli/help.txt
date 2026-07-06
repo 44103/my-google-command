@@ -61,6 +61,7 @@ Actions:
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
   file props id=<FILE_ID>               Show myg tracking properties
+  file props id=<FILE_ID> set=<-|r|w>   Set ACL (- deny, r read-only, w read+write)
   file share id=<FILE_ID>               List sharing permissions
   file share id=<FILE_ID> email=<ADDR> role=<reader|writer|commenter>  Share with user
   file share id=<FILE_ID> type=domain domain=<DOMAIN> role=<reader|writer>  Share with domain
