@@ -20,6 +20,9 @@ Actions:
   sheet notes id=<ID or URL> name=<SHEET> [range=A1:Z1000]  Get cell notes
   sheet note set id=<ID or URL> name=<SHEET> cell=<A1>  Set note from stdin
   sheet note clear id=<ID or URL> name=<SHEET> cell=<A1>  Clear note
+  sheet color id=<ID or URL> name=<SHEET> cell=<A1> color=#rrggbb  Set background color
+  sheet color id=<ID or URL> name=<SHEET> range=A1:C3 color=#rrggbb  Set range background
+  sheet color id=<ID or URL> name=<SHEET> range=A1:C3 color=-  Clear background color
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)

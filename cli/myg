@@ -189,6 +189,7 @@ sheet_lastrow=""
 sheet_notes=""
 sheet_note_set=""
 sheet_note_clear=""
+sheet_color=""
 spreadsheet_create=""
 if [[ "$action" == "sheet" && $# -gt 0 ]]; then
   case "$1" in
@@ -198,6 +199,7 @@ if [[ "$action" == "sheet" && $# -gt 0 ]]; then
     rename)     sheet_rename="1"; shift ;;
     lastrow)    sheet_lastrow="1"; shift ;;
     notes)      sheet_notes="1"; shift ;;
+    color)      sheet_color="1"; shift ;;
     note)
       shift
       case "$1" in
@@ -321,6 +323,7 @@ full_action="$action"
 [[ -n "${sheet_create:-}" ]] && full_action="sheet create"
 [[ -n "${sheet_delete:-}" ]] && full_action="sheet delete"
 [[ -n "${sheet_rename:-}" ]] && full_action="sheet rename"
+[[ -n "${sheet_color:-}" ]] && full_action="sheet color"
 [[ -n "${spreadsheet_create:-}" ]] && full_action="spreadsheet create"
 [[ -n "${task_subaction:-}" ]] && full_action="task $task_subaction"
 [[ -n "${tasklist_subaction:-}" ]] && full_action="tasklist $tasklist_subaction"
@@ -1060,6 +1063,39 @@ elif [[ -n "$sheet_note_clear" ]]; then
     --arg name "$sn_name" \
     --arg cell "$sn_cell" \
     '{action: "sheet:note:clear", id: $id, name: $name, cell: $cell}')
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
+elif [[ -n "$sheet_color" ]]; then
+  sc_id=""
+  sc_name=""
+  sc_range=""
+  sc_cell=""
+  sc_color=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)    sc_id="${arg#id=}" ;;
+      name=*)  sc_name="${arg#name=}" ;;
+      range=*) sc_range="${arg#range=}" ;;
+      cell=*)  sc_cell="${arg#cell=}" ;;
+      color=*) sc_color="${arg#color=}" ;;
+    esac
+  done
+  sc_target="${sc_range:-$sc_cell}"
+  if [[ -z "$sc_target" ]]; then
+    echo "Error: Specify range= or cell= for the target cells" >&2
+    exit 1
+  fi
+  if [[ -z "$sc_color" ]]; then
+    echo "Error: Specify color= (e.g., color=#ff0000 or color=- to clear)" >&2
+    exit 1
+  fi
+  json_body=$(jq -n \
+    --arg id "$sc_id" \
+    --arg name "$sc_name" \
+    --arg range "$sc_target" \
+    --arg color "$sc_color" \
+    '{action: "sheet:color", id: $id, name: $name, range: $range, color: $color}')
   response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "$json_body" "$BASE")
