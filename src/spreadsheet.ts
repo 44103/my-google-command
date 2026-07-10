@@ -187,3 +187,20 @@ function clearNote(id: string, sheetName: string, cell: string): { sheet: string
   sheet.getRange(cell).clearNote();
   return { sheet: sheetName, cell, cleared: true };
 }
+
+function setSheetColor(id: string, sheetName: string, range: string, color: string, gid?: number): { spreadsheetName: string; sheet: string; range: string; color: string } {
+  const file = DriveApp.getFileById(id);
+  if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) throw new Error("Color setting is not supported for XLSX files. Use a Google Sheets file.");
+  const ss = SpreadsheetApp.openById(id);
+  const sheet = findSheet(ss, sheetName, gid);
+  const target = sheet.getRange(range);
+  if (color === "-" || color === "none") {
+    target.setBackground(null);
+    return { spreadsheetName: ss.getName(), sheet: sheet.getName(), range: target.getA1Notation(), color: "cleared" };
+  }
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+    throw new Error(`Invalid color format: "${color}". Use hex format (e.g., #ff0000) or "-" to clear.`);
+  }
+  target.setBackground(color);
+  return { spreadsheetName: ss.getName(), sheet: sheet.getName(), range: target.getA1Notation(), color };
+}

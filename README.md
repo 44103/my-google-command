@@ -148,6 +148,11 @@ myg sheet notes id=<ID> "name=<SHEET_NAME>" range=A1:C10            # 範囲指�
 echo "メモ内容" | myg sheet note set id=<ID> "name=<SHEET_NAME>" cell=A1  # メモ設定
 myg sheet note clear id=<ID> "name=<SHEET_NAME>" cell=A1            # メモ削除
 
+# --- Spreadsheet (背景色) ---
+myg sheet color id=<ID> "name=<SHEET_NAME>" cell=A1 color=#ff0000   # セルの背景色を設定
+myg sheet color id=<ID> "name=<SHEET_NAME>" range=A1:C3 color=#ff0000  # 範囲指定で背景色を設定
+myg sheet color id=<ID> "name=<SHEET_NAME>" range=A1:C3 color=-     # 背景色をクリア
+
 # --- Spreadsheet (XLSX 読み取り) ---
 myg spreadsheet id=<XLSX_FILE_ID>                   # XLSX のシート一覧 (読み取り専用)
 myg sheet id=<XLSX_FILE_ID> "name=<SHEET_NAME>"     # XLSX のシートデータ取得

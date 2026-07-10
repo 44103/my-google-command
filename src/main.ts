@@ -371,6 +371,11 @@ function doPost(
       case "sheet:note:clear":
         result = clearNote(resolveId(body), body.name, body.cell);
         break;
+      case "sheet:color":
+        checkAcl(resolveId(body), "w");
+        result = setSheetColor(resolveId(body), body.name, body.range || body.cell, body.color, resolveGid(body));
+        trackFileWrite(resolveId(body));
+        break;
       default:
         result = { error: `Unknown action: ${action}` };
     }

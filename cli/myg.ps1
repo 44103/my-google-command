@@ -612,6 +612,21 @@ switch ($action) {
         break
     }
 
+    # --- Sheet color (POST) ---
+    { $_ -eq "sheet" -and $subaction -eq "color" } {
+        $range = Get-Val "range"
+        $cell = Get-Val "cell"
+        $target = if ($range) { $range } else { $cell }
+        if (-not $target) { Write-Error "Specify range= or cell= for the target cells"; exit 1 }
+        $color = Get-Val "color"
+        if (-not $color) { Write-Error "Specify color= (e.g., color=#ff0000 or color=- to clear)"; exit 1 }
+        Format-Output (Invoke-Api -Method POST -Body @{
+            action = "sheet:color"; id = Get-Val "id"; name = Get-Val "name"
+            range = $target; color = $color
+        })
+        break
+    }
+
     # --- Doc subcommands (POST + stdin) ---
     { $_ -eq "doc" -and $subaction -in "create", "append", "overwrite", "addtab", "renametab", "movetab", "copytab" } {
         $body = @{
