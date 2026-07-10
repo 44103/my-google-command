@@ -29,6 +29,7 @@ function doGet(
         result = listSheets(resolveId(e.parameter));
         break;
       case "sheet":
+        checkAcl(resolveId(e.parameter), "r");
         result = getSheetData(resolveId(e.parameter), e.parameter.name, resolveGid(e.parameter), e.parameter.range, e.parameter.rows ? parseInt(e.parameter.rows) : undefined, e.parameter.colors !== "false");
         break;
       case "sheet:lastrow":
@@ -38,6 +39,7 @@ function doGet(
         result = listDocs(parseInt(e.parameter.max || "20"));
         break;
       case "doc":
+        checkAcl(resolveId(e.parameter), "r");
         result = getDocContent(resolveId(e.parameter), e.parameter.tab);
         break;
       case "doc:tabs":
@@ -86,7 +88,12 @@ function doGet(
         result = searchFiles(e.parameter.q, parseInt(e.parameter.max || "20"));
         break;
       case "file":
+        checkAcl(e.parameter.id, "r");
         result = downloadFile(e.parameter.id);
+        trackFileAccess(e.parameter.id);
+        break;
+      case "file:props":
+        result = getFileProps(resolveId(e.parameter));
         break;
       case "file:share":
         result = listPermissions(resolveId(e.parameter));
@@ -101,6 +108,7 @@ function doGet(
         result = listSlides(parseInt(e.parameter.max || "20"));
         break;
       case "slide":
+        checkAcl(resolveId(e.parameter), "r");
         result = getSlideContent(resolveId(e.parameter), e.parameter.page);
         break;
       case "slide:notes":
@@ -169,6 +177,7 @@ function doPost(
     switch (action) {
       case "doc:create":
         result = createDoc(body.name, body.text, body.format);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "doc:addtab":
         result = addDocTab(resolveId(body), body.name, body.index && body.index !== "" ? parseInt(body.index) : undefined, body.parent || undefined);
@@ -183,13 +192,19 @@ function doPost(
         result = moveDocTab(resolveId(body), body.tab, parseInt(body.index), body.parent || undefined);
         break;
       case "doc:append":
+        checkAcl(resolveId(body), "w");
         result = appendDoc(resolveId(body), body.text, body.format, body.tab);
+        trackFileWrite(resolveId(body));
         break;
       case "doc:overwrite":
+        checkAcl(resolveId(body), "w");
         result = overwriteDoc(resolveId(body), body.text, body.format, body.tab);
+        trackFileWrite(resolveId(body));
         break;
       case "sheet:write":
+        checkAcl(resolveId(body), "w");
         result = writeSheet(resolveId(body), body.name, body.range, body.text, body.header === "true" || body.header === true, resolveGid(body));
+        trackFileWrite(resolveId(body));
         break;
       case "sheet:create":
         result = createSheet(resolveId(body), body.name);
@@ -202,6 +217,7 @@ function doPost(
         break;
       case "spreadsheet:create":
         result = createSpreadsheet(body.name);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "task:create":
         result = createTask(body.id, body.title, body.due, body.notes, body.parent);
@@ -273,6 +289,10 @@ function doPost(
           body.isBase64 === "true" || body.isBase64 === true,
           body.mimeType,
         );
+        if (result && (result as any).id) trackFileCreation((result as any).id);
+        break;
+      case "file:props:set":
+        result = setFileAcl(resolveId(body), body.value);
         break;
       case "file:move":
         result = moveFile(body.id, body.folder);
@@ -294,29 +314,41 @@ function doPost(
         break;
       case "file:mkdir":
         result = createFolder(body.name, body.folder);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "slide:create":
         result = body.format === "markdown" && body.text
           ? createSlideFromMarkdown(body.name, body.text)
           : createSlide(body.name);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "slide:addpage":
+        checkAcl(resolveId(body), "w");
         result = addSlidePage(resolveId(body));
         break;
       case "slide:addtext":
+        checkAcl(resolveId(body), "w");
         result = addSlideText(resolveId(body), body.page, body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:note:set":
+        checkAcl(resolveId(body), "w");
         result = setSlideNote(resolveId(body), body.page, body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:note:clear":
+        checkAcl(resolveId(body), "w");
         result = clearSlideNote(resolveId(body), body.page);
+        trackFileWrite(resolveId(body));
         break;
       case "slide:overwrite":
+        checkAcl(resolveId(body), "w");
         result = overwriteSlideFromMarkdown(resolveId(body), body.text);
+        trackFileWrite(resolveId(body));
         break;
       case "form:create":
         result = createForm(body.name, body.description);
+        if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
       case "form:additem":
         result = addFormItem(resolveId(body), body.type, body.title, {
