@@ -110,10 +110,12 @@ if [[ "$action" == "token" ]]; then
     echo "Token saved." >&2
   else
     if [[ -n "${GW_DOMAIN:-}" ]]; then
-      echo "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+      auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
     else
-      echo "${BASE}?action=auth"
+      auth_url="${BASE}?action=auth"
     fi
+    open_browser "$auth_url"
+    echo "$auth_url"
   fi
   exit 0
 fi

@@ -172,10 +172,12 @@ if ($action -eq "token") {
         Write-Host "Token saved." -ForegroundColor Green
     } else {
         if ($GW_DOMAIN) {
-            Write-Output "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+            $authUrl = "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
         } else {
-            Write-Output "$Base`?action=auth"
+            $authUrl = "$Base`?action=auth"
         }
+        Start-Process $authUrl
+        Write-Output $authUrl
     }
     exit 0
 }
