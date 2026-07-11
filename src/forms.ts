@@ -11,11 +11,11 @@ function listForms(max?: number): { id: string; name: string; updated: string }[
 
 function getFormDetail(id: string): {
   id: string; name: string; description: string; url: string;
-  items: { index: number; title: string; type: string; choices?: string[]; required: boolean }[];
+  items: { id: number; index: number; title: string; type: string; choices?: string[]; required: boolean }[];
 } {
   const form = FormApp.openById(id);
   const items = form.getItems().map((item, i) => {
-    const base = { index: i, title: item.getTitle(), type: item.getType().toString(), required: false as boolean, choices: undefined as string[] | undefined };
+    const base = { id: item.getId(), index: i, title: item.getTitle(), type: item.getType().toString(), required: false as boolean, choices: undefined as string[] | undefined };
     switch (item.getType()) {
       case FormApp.ItemType.TEXT:
         base.required = item.asTextItem().isRequired(); break;
