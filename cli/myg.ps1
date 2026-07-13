@@ -182,12 +182,178 @@ if ($action -eq "token") {
     exit 0
 }
 
+# --- ACL management (local, no token required for command subcommand) ---
+if ($action -eq "acl") {
+    $PermFile = Join-Path $ProjectDir ".permission.json"
+
+    # Ensure .permission.json exists
+    if (-not (Test-Path $PermFile)) {
+        Set-Content -Path $PermFile -Value "{}" -NoNewline
+        Set-ItemProperty -Path $PermFile -Name IsReadOnly -Value $true
+    }
+
+    function Perm-Write {
+        param([string]$Content)
+        if (Test-Path $PermFile) {
+            Set-ItemProperty -Path $PermFile -Name IsReadOnly -Value $false
+        }
+        Set-Content -Path $PermFile -Value $Content -NoNewline
+        Set-ItemProperty -Path $PermFile -Name IsReadOnly -Value $true
+    }
+
+    function Perm-Read {
+        return (Get-Content $PermFile -Raw | ConvertFrom-Json)
+    }
+
+    $aclTarget = if ($remaining.Count -gt 0) { $remaining[0] } else { "" }
+    $aclRemaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+
+    if ($aclTarget -eq "command") {
+        $aclVerb = if ($aclRemaining.Count -gt 0) { $aclRemaining[0] } else { "" }
+        $aclValue = if ($aclRemaining.Count -gt 1) { ($aclRemaining[1..($aclRemaining.Count - 1)]) -join " " } else { "" }
+
+        switch ($aclVerb) {
+            "" {
+                Write-Host "Current .permission.json:" -ForegroundColor Cyan
+                Get-Content $PermFile -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 10
+            }
+            "deny" {
+                if (-not $aclValue) { Write-Error 'Usage: myg acl command deny "<command>"'; exit 1 }
+                $perm = Perm-Read
+                if ($perm.PSObject.Properties["allow"]) {
+                    Write-Error "Cannot add deny rule when allow list exists. Use 'myg acl command reset' first."
+                    exit 1
+                }
+                $denyList = @()
+                if ($perm.PSObject.Properties["deny"]) { $denyList = @($perm.deny) }
+                if ($aclValue -notin $denyList) { $denyList += $aclValue }
+                $perm | Add-Member -NotePropertyName "deny" -NotePropertyValue $denyList -Force
+                Perm-Write ($perm | ConvertTo-Json -Depth 10)
+                Write-Host "Denied: $aclValue" -ForegroundColor Yellow
+            }
+            "allow" {
+                if (-not $aclValue) { Write-Error 'Usage: myg acl command allow "<command>"'; exit 1 }
+                $perm = Perm-Read
+                if ($perm.PSObject.Properties["deny"]) {
+                    Write-Error "Cannot add allow rule when deny list exists. Use 'myg acl command reset' first."
+                    exit 1
+                }
+                $allowList = @()
+                if ($perm.PSObject.Properties["allow"]) { $allowList = @($perm.allow) }
+                if ($aclValue -notin $allowList) { $allowList += $aclValue }
+                $perm | Add-Member -NotePropertyName "allow" -NotePropertyValue $allowList -Force
+                Perm-Write ($perm | ConvertTo-Json -Depth 10)
+                Write-Host "Allowed: $aclValue" -ForegroundColor Green
+            }
+            "remove" {
+                if (-not $aclValue) { Write-Error 'Usage: myg acl command remove "<command>"'; exit 1 }
+                if (-not [Environment]::UserInteractive) {
+                    Write-Error "ACL change (remove) requires interactive terminal"; exit 1
+                }
+                Write-Host "This will remove '$aclValue' from the restriction list."
+                $confirm = Read-Host "Proceed? [y/N]"
+                if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+                $perm = Perm-Read
+                if ($perm.PSObject.Properties["deny"]) {
+                    $filtered = @($perm.deny | Where-Object { $_ -ne $aclValue })
+                    if ($filtered.Count -eq 0) {
+                        $perm.PSObject.Properties.Remove("deny")
+                    } else {
+                        $perm.deny = $filtered
+                    }
+                }
+                if ($perm.PSObject.Properties["allow"]) {
+                    $filtered = @($perm.allow | Where-Object { $_ -ne $aclValue })
+                    if ($filtered.Count -eq 0) {
+                        $perm.PSObject.Properties.Remove("allow")
+                    } else {
+                        $perm.allow = $filtered
+                    }
+                }
+                Perm-Write ($perm | ConvertTo-Json -Depth 10)
+                Write-Host "Removed: $aclValue" -ForegroundColor Yellow
+            }
+            "reset" {
+                if (-not [Environment]::UserInteractive) {
+                    Write-Error "ACL change (reset) requires interactive terminal"; exit 1
+                }
+                Write-Host "WARNING: This will clear ALL permission restrictions."
+                $confirm = Read-Host "Proceed? [y/N]"
+                if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+                Perm-Write "{}"
+                Write-Host "All restrictions cleared." -ForegroundColor Green
+            }
+            default {
+                Write-Error "Unknown acl command verb: $aclVerb"
+                Write-Host 'Usage: myg acl command [deny|allow|remove|reset] ["<command>"]'
+                exit 1
+            }
+        }
+    } elseif ($aclTarget -eq "file") {
+        $aclFileId = if ($aclRemaining.Count -gt 0) { $aclRemaining[0] } else { "" }
+        $aclFileVerb = if ($aclRemaining.Count -gt 1) { $aclRemaining[1] } else { "" }
+
+        if (-not $aclFileId) {
+            Write-Error "Usage: myg acl file <FILE_ID> [deny|readonly|allow]"
+            exit 1
+        }
+
+        # Load token for file ACL operations
+        if (Test-Path $TokenFile) {
+            $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
+        } else {
+            Write-Error "No credentials. Run: myg auth"
+            exit 1
+        }
+
+        switch ($aclFileVerb) {
+            "" {
+                Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = $aclFileId })
+            }
+            "deny" {
+                if (-not [Environment]::UserInteractive) {
+                    Write-Error "ACL change requires interactive terminal"; exit 1
+                }
+                Write-Host "WARNING: This will DENY all myg access (read & write) to this file."
+                $confirm = Read-Host "Proceed? [y/N]"
+                if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+                Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "-" })
+            }
+            "readonly" {
+                if (-not [Environment]::UserInteractive) {
+                    Write-Error "ACL change requires interactive terminal"; exit 1
+                }
+                Write-Host "This will set the file to READ-ONLY via myg."
+                $confirm = Read-Host "Proceed? [y/N]"
+                if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+                Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "r" })
+            }
+            "allow" {
+                if (-not [Environment]::UserInteractive) {
+                    Write-Error "ACL change requires interactive terminal"; exit 1
+                }
+                Write-Host "This will set the file to READ+WRITE via myg."
+                $confirm = Read-Host "Proceed? [y/N]"
+                if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+                Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "w" })
+            }
+            default {
+                Write-Error "Unknown verb: $aclFileVerb"
+                Write-Host "Usage: myg acl file <FILE_ID> [deny|readonly|allow]"
+                exit 1
+            }
+        }
+    } else {
+        Write-Host 'Usage: myg acl command [deny|allow|remove|reset] ["<command>"]'
+        Write-Host "       myg acl file <FILE_ID> [deny|readonly|allow]"
+        exit 1
+    }
+    exit 0
+}
+
 # Load token
 if (Test-Path $TokenFile) {
     $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
-} elseif (Test-Path "$env:USERPROFILE\.clasprc.json") {
-    $clasp = Get-Content "$env:USERPROFILE\.clasprc.json" -Raw | ConvertFrom-Json
-    $script:AccessToken = $clasp.token.access_token
 } else {
     Write-Error "No credentials. Run: myg auth"
     exit 1
@@ -206,6 +372,33 @@ if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') {
 }
 
 function Get-Val { param([string]$key, [string]$default = "") ; if ($parsed.ContainsKey($key)) { $parsed[$key] } else { $default } }
+
+# Permission check via .permission.json
+function Check-Permission {
+    param([string]$FullAction)
+    $permFile = Join-Path $ProjectDir ".permission.json"
+    if (-not (Test-Path $permFile)) { return }
+    $perm = Get-Content $permFile -Raw | ConvertFrom-Json
+
+    if ($perm.PSObject.Properties["allow"]) {
+        if ($FullAction -notin @($perm.allow)) {
+            Write-Error "Action '$FullAction' is not in allow list. Check .permission.json"
+            exit 1
+        }
+    }
+
+    if ($perm.PSObject.Properties["deny"]) {
+        if ($FullAction -in @($perm.deny)) {
+            Write-Error "Action '$FullAction' is denied. Check .permission.json"
+            exit 1
+        }
+    }
+}
+
+# Resolve full action name for permission check
+$fullAction = $action
+if ($subaction) { $fullAction = "$action $subaction" }
+Check-Permission $fullAction
 
 switch ($action) {
     # --- Files search (GET) ---
@@ -377,31 +570,6 @@ switch ($action) {
     { $_ -eq "file" -and $subaction -eq "unshare" } {
         $body = @{ action = "file:unshare"; id = Get-Val "id"; permission = Get-Val "permission" }
         Format-Output (Invoke-Api -Method POST -Body $body)
-        break
-    }
-
-    # --- File props (GET/SET) ---
-    { $_ -eq "file" -and $subaction -eq "props" } {
-        $setVal = Get-Val "set"
-        if ($setVal) {
-            # Require real terminal (block LLM/pipe execution)
-            if (-not [Environment]::UserInteractive) {
-                Write-Error "ACL change requires interactive terminal"; exit 1
-            }
-            switch ($setVal) {
-                "-" { Write-Host "WARNING: This will DENY all myg access (read & write) to this file." }
-                "r" { Write-Host "This will set the file to READ-ONLY via myg." }
-                "w" { Write-Host "This will set the file to READ+WRITE via myg." }
-                default { Write-Error "Invalid value for set=. Allowed: -, r, w"; exit 1 }
-            }
-            $confirm = Read-Host "Proceed? [y/N]"
-            if ($confirm -ne "y" -and $confirm -ne "Y") {
-                Write-Host "Cancelled."; exit 0
-            }
-            Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = (Get-Val "id"); value = $setVal })
-        } else {
-            Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = (Get-Val "id") })
-        }
         break
     }
 

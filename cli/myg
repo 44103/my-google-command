@@ -120,12 +120,172 @@ if [[ "$action" == "token" ]]; then
   exit 0
 fi
 
+# --- ACL management (local, no token required) ---
+if [[ "$action" == "acl" ]]; then
+  PERM_FILE="$SCRIPT_DIR/../.permission.json"
+  acl_target="${1:-}"
+  shift 2>/dev/null || true
+
+  # Ensure .permission.json exists
+  if [[ ! -f "$PERM_FILE" ]]; then
+    echo '{}' > "$PERM_FILE"
+    chmod 444 "$PERM_FILE"
+  fi
+
+  perm_write() {
+    local content="$1"
+    chmod 644 "$PERM_FILE" 2>/dev/null || true
+    echo "$content" > "$PERM_FILE"
+    chmod 444 "$PERM_FILE"
+  }
+
+  if [[ "$acl_target" == "command" ]]; then
+    acl_verb="${1:-}"
+    shift 2>/dev/null || true
+    acl_value="$*"
+
+    case "$acl_verb" in
+      "")
+        # Show current settings
+        echo "Current .permission.json:" >&2
+        jq '.' "$PERM_FILE"
+        ;;
+      deny)
+        if [[ -z "$acl_value" ]]; then
+          echo "Usage: myg acl command deny \"<command>\"" >&2; exit 1
+        fi
+        # Check for allow/deny conflict
+        if jq -e '.allow' "$PERM_FILE" &>/dev/null; then
+          echo "Error: Cannot add deny rule when allow list exists. Use 'myg acl command reset' first." >&2; exit 1
+        fi
+        new=$(jq --arg v "$acl_value" '.deny = ((.deny // []) | if index($v) then . else . + [$v] end)' "$PERM_FILE")
+        perm_write "$new"
+        echo "Denied: $acl_value" >&2
+        ;;
+      allow)
+        if [[ -z "$acl_value" ]]; then
+          echo "Usage: myg acl command allow \"<command>\"" >&2; exit 1
+        fi
+        # Check for allow/deny conflict
+        if jq -e '.deny' "$PERM_FILE" &>/dev/null; then
+          echo "Error: Cannot add allow rule when deny list exists. Use 'myg acl command reset' first." >&2; exit 1
+        fi
+        new=$(jq --arg v "$acl_value" '.allow = ((.allow // []) | if index($v) then . else . + [$v] end)' "$PERM_FILE")
+        perm_write "$new"
+        echo "Allowed: $acl_value" >&2
+        ;;
+      remove)
+        if [[ -z "$acl_value" ]]; then
+          echo "Usage: myg acl command remove \"<command>\"" >&2; exit 1
+        fi
+        if [[ ! -t 0 ]]; then
+          echo "Error: ACL change (remove) requires interactive terminal" >&2; exit 1
+        fi
+        echo "This will remove '$acl_value' from the restriction list."
+        printf "Proceed? [y/N]: "
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+          echo "Cancelled." >&2; exit 0
+        fi
+        new=$(jq --arg v "$acl_value" '
+          if .deny then .deny = (.deny | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
+          if .allow then .allow = (.allow | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
+          if .deny == null then del(.deny) else . end |
+          if .allow == null then del(.allow) else . end
+        ' "$PERM_FILE")
+        perm_write "$new"
+        echo "Removed: $acl_value" >&2
+        ;;
+      reset)
+        if [[ ! -t 0 ]]; then
+          echo "Error: ACL change (reset) requires interactive terminal" >&2; exit 1
+        fi
+        echo "WARNING: This will clear ALL permission restrictions."
+        printf "Proceed? [y/N]: "
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+          echo "Cancelled." >&2; exit 0
+        fi
+        perm_write '{}'
+        echo "All restrictions cleared." >&2
+        ;;
+      *)
+        echo "Unknown acl command verb: $acl_verb" >&2
+        echo "Usage: myg acl command [deny|allow|remove|reset] [\"<command>\"]" >&2
+        exit 1
+        ;;
+    esac
+  elif [[ "$acl_target" == "file" ]]; then
+    acl_file_id="${1:-}"
+    shift 2>/dev/null || true
+    acl_file_verb="${1:-}"
+
+    if [[ -z "$acl_file_id" ]]; then
+      echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2; exit 1
+    fi
+
+    # Load token for file ACL operations
+    if [[ -f "$TOKEN_FILE" ]]; then
+      _tk=$(cat "$TOKEN_FILE")
+    else
+      echo "No credentials. Run: myg auth" >&2; exit 1
+    fi
+
+    acl_file_set_props() {
+      local value="$1"
+      json_body=$(jq -n --arg action "file:props:set" --arg id "$acl_file_id" --arg value "$value" \
+        '{action: $action, id: $id, value: $value}')
+      curl -s -L -H "Authorization: Bearer ${_tk}" \
+        -H "Content-Type: application/json" \
+        -d "$json_body" "$BASE"
+    }
+
+    acl_file_confirm() {
+      local msg="$1"
+      if [[ ! -t 0 ]]; then
+        echo "Error: ACL change requires interactive terminal (stdin must be a TTY)" >&2; exit 1
+      fi
+      echo "$msg"
+      printf "Proceed? [y/N]: "
+      read -r confirm
+      if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Cancelled." >&2; exit 0
+      fi
+    }
+
+    case "$acl_file_verb" in
+      "")
+        curl -s -L -H "Authorization: Bearer ${_tk}" \
+          -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE"
+        ;;
+      deny)
+        acl_file_confirm "WARNING: This will DENY all myg access (read & write) to this file."
+        acl_file_set_props "-"
+        ;;
+      readonly)
+        acl_file_confirm "This will set the file to READ-ONLY via myg."
+        acl_file_set_props "r"
+        ;;
+      allow)
+        acl_file_confirm "This will set the file to READ+WRITE via myg."
+        acl_file_set_props "w"
+        ;;
+      *)
+        echo "Unknown verb: $acl_file_verb" >&2
+        echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+        exit 1
+        ;;
+    esac
+  else
+    echo "Usage: myg acl command [deny|allow|remove|reset] [\"<command>\"]" >&2
+    echo "       myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+    exit 1
+  fi
+  exit 0
+fi
+
 if [[ -f "$TOKEN_FILE" ]]; then
   ACCESS_TOKEN=$(cat "$TOKEN_FILE")
-elif [[ -f "$HOME/.clasprc.json" ]]; then
-  ACCESS_TOKEN=$(jq -r '.token.access_token' "$HOME/.clasprc.json")
-elif command -v gcloud &>/dev/null; then
-  ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
 else
   echo "No credentials. Run: myg auth" >&2
   exit 1
@@ -237,7 +397,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare|props) file_subaction="$1"; shift ;;
+    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare) file_subaction="$1"; shift ;;
   esac
 fi
 
@@ -574,7 +734,6 @@ elif [[ -n "$file_subaction" ]]; then
   fu_type=""
   fu_domain=""
   fu_permission=""
-  fu_set=""
   for arg in "$@"; do
     case "$arg" in
       id=*)         fu_id="${arg#id=}" ;;
@@ -589,7 +748,6 @@ elif [[ -n "$file_subaction" ]]; then
       type=*)       fu_type="${arg#type=}" ;;
       domain=*)     fu_domain="${arg#domain=}" ;;
       permission=*) fu_permission="${arg#permission=}" ;;
-      set=*)        fu_set="${arg#set=}" ;;
     esac
   done
 
@@ -627,34 +785,6 @@ elif [[ -n "$file_subaction" ]]; then
   elif [[ "$file_subaction" == "history" ]]; then
     response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
       -G --data-urlencode "action=file:history" --data-urlencode "id=${fu_id}" --data-urlencode "max=${fu_max:-20}" "$BASE")
-  elif [[ "$file_subaction" == "props" ]]; then
-    if [[ -n "$fu_set" ]]; then
-      # Require real terminal (block LLM/pipe execution)
-      if [[ ! -t 0 ]]; then
-        echo "Error: ACL change requires interactive terminal (stdin must be a TTY)" >&2
-        exit 1
-      fi
-      # Confirm with user before changing ACL
-      case "$fu_set" in
-        -) echo "WARNING: This will DENY all myg access (read & write) to this file." ;;
-        r) echo "This will set the file to READ-ONLY via myg." ;;
-        w) echo "This will set the file to READ+WRITE via myg." ;;
-        *) echo "Error: Invalid value for set=. Allowed: -, r, w" >&2; exit 1 ;;
-      esac
-      printf "Proceed? [y/N]: "
-      read -r confirm
-      if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        echo "Cancelled." >&2; exit 0
-      fi
-      json_body=$(jq -n --arg action "file:props:set" --arg id "$fu_id" --arg value "$fu_set" \
-        '{action: $action, id: $id, value: $value}')
-      response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "$json_body" "$BASE")
-    else
-      response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-        -G --data-urlencode "action=file:props" --data-urlencode "id=${fu_id}" "$BASE")
-    fi
   elif [[ "$file_subaction" == "upload" ]]; then
     if [[ -n "$fu_file" ]]; then
       fu_tmp=$(mktemp)

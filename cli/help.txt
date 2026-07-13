@@ -63,8 +63,6 @@ Actions:
   file mkdir name=<NAME> [folder=<FOLDER_ID>]  Create folder
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
-  file props id=<FILE_ID>               Show myg tracking properties
-  file props id=<FILE_ID> set=<-|r|w>   Set ACL (- deny, r read-only, w read+write)
   file share id=<FILE_ID>               List sharing permissions
   file share id=<FILE_ID> email=<ADDR> role=<reader|writer|commenter>  Share with user
   file share id=<FILE_ID> type=domain domain=<DOMAIN> role=<reader|writer>  Share with domain
@@ -115,6 +113,15 @@ Actions:
   event freebusy emails=<EMAIL,EMAIL,...> [from=YYYY-MM-DD] [to=YYYY-MM-DD] [duration=<MIN>]
     Find free time slots across multiple people (default: today, 30min)
   event rooms [q=<QUERY>]       List meeting rooms (filter by name)
+  acl command                     Show current permission settings
+  acl command deny "<ACTION>"    Deny a specific command
+  acl command allow "<ACTION>"   Allow a specific command (deny list must be empty)
+  acl command remove "<ACTION>"  Remove from restriction list
+  acl command reset              Clear all restrictions
+  acl file <FILE_ID>             Show file ACL settings
+  acl file <FILE_ID> deny        Deny all myg access to the file
+  acl file <FILE_ID> readonly    Set file to read-only via myg
+  acl file <FILE_ID> allow       Set file to read+write via myg
   gas info script=<SCRIPT_ID or URL>    GAS project info
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
