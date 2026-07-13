@@ -185,9 +185,6 @@ if ($action -eq "token") {
 # Load token
 if (Test-Path $TokenFile) {
     $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
-} elseif (Test-Path "$env:USERPROFILE\.clasprc.json") {
-    $clasp = Get-Content "$env:USERPROFILE\.clasprc.json" -Raw | ConvertFrom-Json
-    $script:AccessToken = $clasp.token.access_token
 } else {
     Write-Error "No credentials. Run: myg auth"
     exit 1

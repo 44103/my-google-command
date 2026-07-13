@@ -349,6 +349,45 @@ Gmail の `q` パラメータは [Gmail の検索構文](https://support.google.
 `.permission.json` をリポジトリルートに作成すると、使用できるアクションを制限できます。
 このファイルは Git 管理外 (`.gitignore` 済み) なので、ユーザーごとに設定できます。
 
+#### myg acl コマンドで管理する (推奨)
+
+`myg acl` コマンドを使うと、`.permission.json` を直接編集せずに権限を管理できます。
+
+```bash
+# 現在の設定を表示
+myg acl command
+
+# 特定コマンドを使用禁止に
+myg acl command deny "file move"
+myg acl command deny "file share"
+
+# 使用禁止を解除
+myg acl command remove "file move"
+
+# 全制限をリセット
+myg acl command reset
+```
+
+ファイル単位の ACL 管理 (`file props` のエイリアス):
+
+```bash
+# ファイルの現在のACL設定を表示
+myg acl file <FILE_ID>
+
+# ファイルへの myg アクセスを禁止
+myg acl file <FILE_ID> deny
+
+# 読み取り専用に設定
+myg acl file <FILE_ID> readonly
+
+# 読み書き許可に設定
+myg acl file <FILE_ID> allow
+```
+
+> `deny` と `allow` は排他です。片方を使っている場合、もう片方を追加するには先に `myg acl command reset` が必要です。
+
+#### .permission.json を直接編集する場合
+
 **deny 方式** (指定したアクションだけ拒否、他は全許可):
 
 ```json
