@@ -204,6 +204,33 @@ if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') {
 
 function Get-Val { param([string]$key, [string]$default = "") ; if ($parsed.ContainsKey($key)) { $parsed[$key] } else { $default } }
 
+# Permission check via .permission.json
+function Check-Permission {
+    param([string]$FullAction)
+    $permFile = Join-Path $ProjectDir ".permission.json"
+    if (-not (Test-Path $permFile)) { return }
+    $perm = Get-Content $permFile -Raw | ConvertFrom-Json
+
+    if ($perm.PSObject.Properties["allow"]) {
+        if ($FullAction -notin @($perm.allow)) {
+            Write-Error "Action '$FullAction' is not in allow list. Check .permission.json"
+            exit 1
+        }
+    }
+
+    if ($perm.PSObject.Properties["deny"]) {
+        if ($FullAction -in @($perm.deny)) {
+            Write-Error "Action '$FullAction' is denied. Check .permission.json"
+            exit 1
+        }
+    }
+}
+
+# Resolve full action name for permission check
+$fullAction = $action
+if ($subaction) { $fullAction = "$action $subaction" }
+Check-Permission $fullAction
+
 switch ($action) {
     # --- Files search (GET) ---
     { $_ -eq "files" -and $subaction -eq "search" } {
