@@ -178,6 +178,15 @@ if [[ "$action" == "acl" ]]; then
         if [[ -z "$acl_value" ]]; then
           echo "Usage: myg acl command remove \"<command>\"" >&2; exit 1
         fi
+        if [[ ! -t 0 ]]; then
+          echo "Error: ACL change (remove) requires interactive terminal" >&2; exit 1
+        fi
+        echo "This will remove '$acl_value' from the restriction list."
+        printf "Proceed? [y/N]: "
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+          echo "Cancelled." >&2; exit 0
+        fi
         new=$(jq --arg v "$acl_value" '
           if .deny then .deny = (.deny | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
           if .allow then .allow = (.allow | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
@@ -188,6 +197,15 @@ if [[ "$action" == "acl" ]]; then
         echo "Removed: $acl_value" >&2
         ;;
       reset)
+        if [[ ! -t 0 ]]; then
+          echo "Error: ACL change (reset) requires interactive terminal" >&2; exit 1
+        fi
+        echo "WARNING: This will clear ALL permission restrictions."
+        printf "Proceed? [y/N]: "
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+          echo "Cancelled." >&2; exit 0
+        fi
         perm_write '{}'
         echo "All restrictions cleared." >&2
         ;;
