@@ -378,6 +378,15 @@ myg acl file <FILE_ID> readonly
 myg acl file <FILE_ID> allow
 ```
 
+#### ファイル ACL モード (ACL_MODE)
+
+`.env` の `ACL_MODE` でファイルアクセスの既定ポリシーを切り替えられます。
+
+- `whitelist` (デフォルト): 明示的に許可したファイルのみアクセス可能
+- `blacklist`: 明示的に拒否したファイル以外はアクセス可能
+
+詳しくは [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+
 > `deny` と `allow` は排他です。片方を使っている場合、もう片方を追加するには先に `myg acl command reset` が必要です。
 
 #### .permission.json を直接編集する場合

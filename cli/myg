@@ -1320,4 +1320,26 @@ if echo "$response" | grep -qi '<html'; then
   exit 1
 fi
 
+# Check for error response from GAS
+error_msg=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
+if [[ -n "$error_msg" ]]; then
+  # Split message at ". To " or ", run:" to separate explanation from hint
+  if [[ "$error_msg" == *". To "* ]]; then
+    error_text="${error_msg%%". To "*}"
+    hint_text="${error_msg#*". To "}"
+    # Extract the command after "run: "
+    hint_cmd=$(echo "$hint_text" | grep -oP '(?<=run: ).*' || true)
+    echo "Error: ${error_text#*: }" >&2
+    if [[ -n "$hint_cmd" ]]; then
+      echo "To fix, run:" >&2
+      echo "" >&2
+      echo "  $hint_cmd" >&2
+    fi
+  else
+    echo "Error: ${error_msg#*: }" >&2
+  fi
+
+  exit 1
+fi
+
 echo "$response" | jq . 2>/dev/null || echo "$response"

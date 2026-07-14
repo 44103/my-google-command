@@ -193,13 +193,37 @@ function setPrivateProperty(fileId: string, key: string, value: string): void {
   }
 }
 
+function resolvePermission(acl: string | null, required: "r" | "w"): { result: "allow" | "deny"; reason: "blocked" | "not_set" | "readonly" | null } {
+  if (acl === "-") return { result: "deny", reason: "blocked" };
+  if (acl === "w") return { result: "allow", reason: null };
+  if (acl === "r") return required === "r" ? { result: "allow", reason: null } : { result: "deny", reason: "readonly" };
+  return ACL_MODE === "blacklist" ? { result: "allow", reason: null } : { result: "deny", reason: "not_set" };
+}
+
 function checkAcl(fileId: string, mode: "r" | "w"): void {
   const acl = getPrivateProperty(fileId, "acl");
-  if (acl === "-") {
-    throw new Error("ACCESS_DENIED: This file is blocked by myg property (acl=-)");
+  const { result, reason } = resolvePermission(acl, mode);
+  if (result === "deny") {
+    const level = mode === "w" ? "allow" : "readonly";
+    const desc = mode === "w" ? "read+write" : "read-only";
+    const prefix = reason === "blocked"
+      ? "ACCESS_DENIED: WARNING - This file is explicitly BLOCKED (acl=-). Someone intentionally restricted access."
+      : reason === "readonly"
+        ? "WRITE_DENIED: This file is read-only (acl=r)."
+        : "ACL_NOT_SET: This file has not been permitted for myg access.";
+    throw new Error(prefix + " To allow " + desc + " access, run: myg acl file " + fileId + " " + level);
   }
-  if (mode === "w" && acl === "r") {
-    throw new Error("WRITE_DENIED: This file is read-only by myg property (acl=r)");
+}
+
+function trackFileAccess(fileId: string): void {
+  if (ACL_MODE !== "blacklist") return;
+  const currentAcl = getPrivateProperty(fileId, "acl");
+  if (!currentAcl) {
+    setPrivateProperty(fileId, "acl", "r");
+    const { local, domain } = getCurrentEmail();
+    setPrivateProperty(fileId, "permitted_local", local);
+    setPrivateProperty(fileId, "permitted_domain", domain);
+    setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
   }
 }
 
@@ -215,19 +239,6 @@ function setFileAcl(fileId: string, value: string): { id: string; name: string; 
   setPrivateProperty(fileId, "permitted_domain", domain);
   setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
   return { id: fileId, name: file.getName(), acl: value };
-}
-
-function trackFileAccess(fileId: string): void {
-  // Set acl to 'r' only if acl does not exist yet (don't downgrade)
-  const currentAcl = getPrivateProperty(fileId, "acl");
-  if (!currentAcl) {
-    setPrivateProperty(fileId, "acl", "r");
-    // Record who permitted
-    const { local, domain } = getCurrentEmail();
-    setPrivateProperty(fileId, "permitted_local", local);
-    setPrivateProperty(fileId, "permitted_domain", domain);
-    setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
-  }
 }
 
 function trackFileWrite(fileId: string): void {
