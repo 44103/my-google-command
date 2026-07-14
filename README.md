@@ -366,16 +366,16 @@ myg acl command reset
 
 ```bash
 # ファイルの現在のACL設定を表示
-myg acl file <FILE_ID>
+myg acl file id=<FILE_ID>
 
 # ファイルへの myg アクセスを禁止
-myg acl file <FILE_ID> deny
+myg acl file id=<FILE_ID> deny
 
 # 読み取り専用に設定
-myg acl file <FILE_ID> readonly
+myg acl file id=<FILE_ID> readonly
 
 # 読み書き許可に設定
-myg acl file <FILE_ID> allow
+myg acl file id=<FILE_ID> allow
 ```
 
 #### ファイル ACL モード (ACL_MODE)

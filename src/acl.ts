@@ -51,7 +51,7 @@ function checkAcl(fileId: string, mode: "r" | "w"): void {
       : reason === "readonly"
         ? "WRITE_DENIED: This file is read-only (acl=r)."
         : "ACL_NOT_SET: This file has not been permitted for myg access.";
-    throw new Error(prefix + " To allow " + desc + " access, run: myg acl file " + fileId + " " + level);
+    throw new Error(prefix + " To allow " + desc + " access, run: myg acl file id=" + fileId + " " + level);
   }
 }
 

@@ -216,12 +216,17 @@ if [[ "$action" == "acl" ]]; then
         ;;
     esac
   elif [[ "$acl_target" == "file" ]]; then
-    acl_file_id="${1:-}"
-    shift 2>/dev/null || true
-    acl_file_verb="${1:-}"
+    acl_file_id=""
+    acl_file_verb=""
+    for arg in "$@"; do
+      case "$arg" in
+        id=*) acl_file_id="${arg#id=}" ;;
+        deny|readonly|allow) acl_file_verb="$arg" ;;
+      esac
+    done
 
     if [[ -z "$acl_file_id" ]]; then
-      echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2; exit 1
+      echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|allow]" >&2; exit 1
     fi
 
     # Load token for file ACL operations
@@ -272,13 +277,13 @@ if [[ "$action" == "acl" ]]; then
         ;;
       *)
         echo "Unknown verb: $acl_file_verb" >&2
-        echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+        echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|allow]" >&2
         exit 1
         ;;
     esac
   else
     echo "Usage: myg acl command [deny|allow|remove|reset] [\"<command>\"]" >&2
-    echo "       myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+    echo "       myg acl file id=<FILE_ID> [deny|readonly|allow]" >&2
     exit 1
   fi
   exit 0
