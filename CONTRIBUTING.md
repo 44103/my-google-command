@@ -188,7 +188,7 @@ yarn open  # GAS エディタを開く
 3. `acl=r` (read-only) → read は許可、write は拒否
 4. ACL 未設定 → `ACL_MODE` のデフォルトポリシーに従う
 
-エラー時は操作に必要な権限レベル (`readonly` or `allow`) のコマンドが案内されます。
+エラー時は操作に必要な権限レベル (`readonly` or `full`) のコマンドが案内されます。
 
 #### 設定変更の反映
 

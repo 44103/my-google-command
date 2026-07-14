@@ -121,7 +121,7 @@ Actions:
   acl file id=<FILE_ID>             Show file ACL settings
   acl file id=<FILE_ID> deny        Deny all myg access to the file
   acl file id=<FILE_ID> readonly    Set file to read-only via myg
-  acl file id=<FILE_ID> allow       Set file to read+write via myg
+  acl file id=<FILE_ID> full        Set file to read+write via myg
   gas info script=<SCRIPT_ID or URL>    GAS project info
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files

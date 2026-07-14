@@ -44,7 +44,7 @@ function checkAcl(fileId: string, mode: "r" | "w"): void {
   const acl = getPrivateProperty(fileId, "acl");
   const { result, reason } = resolvePermission(acl, mode);
   if (result === "deny") {
-    const level = mode === "w" ? "allow" : "readonly";
+    const level = mode === "w" ? "full" : "readonly";
     const desc = mode === "w" ? "read+write" : "read-only";
     const prefix = reason === "blocked"
       ? "ACCESS_DENIED: WARNING - This file is explicitly BLOCKED (acl=-). Someone intentionally restricted access."

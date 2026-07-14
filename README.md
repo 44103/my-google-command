@@ -375,7 +375,7 @@ myg acl file id=<FILE_ID> deny
 myg acl file id=<FILE_ID> readonly
 
 # 読み書き許可に設定
-myg acl file id=<FILE_ID> allow
+myg acl file id=<FILE_ID> full
 ```
 
 #### ファイル ACL モード (ACL_MODE)
