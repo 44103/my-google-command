@@ -26,3 +26,9 @@ node -e "
   f.webapp.access = process.env.GW_ACCESS || 'DOMAIN';
   require('fs').writeFileSync('$PROJECT_DIR/dist/appsscript.json', JSON.stringify(f, null, 2));
 "
+
+# Generate config.js with environment values
+ACL_MODE="${ACL_MODE:-whitelist}"
+cat > "$PROJECT_DIR/dist/config.js" <<EOF
+var ACL_MODE = "${ACL_MODE}";
+EOF

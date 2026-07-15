@@ -162,12 +162,43 @@ yarn open  # GAS エディタを開く
 
 ## 環境変数 (.env)
 
-| 変数            | 説明                                         | デフォルト |
-| --------------- | -------------------------------------------- | ---------- |
-| `DEPLOY_ID`     | 本番 GAS デプロイ ID                         | (必須)     |
-| `DEV_DEPLOY_ID` | 開発 GAS デプロイ ID                         | (任意)     |
-| `GW_ACCESS`     | Web App のアクセス範囲 (`DOMAIN` / `MYSELF`) | `DOMAIN`   |
-| `GW_DOMAIN`     | Google Workspace ドメイン                    | (未設定)   |
+| 変数            | 説明                                         | デフォルト  |
+| --------------- | -------------------------------------------- | ----------- |
+| `DEPLOY_ID`     | 本番 GAS デプロイ ID                         | (必須)      |
+| `DEV_DEPLOY_ID` | 開発 GAS デプロイ ID                         | (任意)      |
+| `GW_ACCESS`     | Web App のアクセス範囲 (`DOMAIN` / `MYSELF`) | `DOMAIN`    |
+| `GW_DOMAIN`     | Google Workspace ドメイン                    | (未設定)    |
+| `ACL_MODE`      | ファイル ACL のデフォルトポリシー             | `whitelist` |
+
+### ACL_MODE の詳細
+
+`ACL_MODE` はファイルアクセス時の既定ポリシーを制御します。ビルド時に `src/config.ts` が `dist/config.js` として生成され、GAS 側の定数として埋め込まれます。
+
+| モード | ACL 未設定ファイルへのアクセス | 用途 |
+| --- | --- | --- |
+| `whitelist` | 拒否。`myg acl file <ID> readonly` 等で事前許可が必要 | 安全重視。意図しないファイル操作を防ぐ |
+| `blacklist` | 許可。アクセス時にフットプリント (`acl=r`) を自動記録 | 利便性重視。従来互換 |
+
+#### 権限解決ロジック (resolvePermission)
+
+以下の優先順で判定されます:
+
+1. `acl=-` (明示的 deny) → 常に拒否
+2. `acl=w` (read+write 許可) → 常に許可
+3. `acl=r` (read-only) → read は許可、write は拒否
+4. ACL 未設定 → `ACL_MODE` のデフォルトポリシーに従う
+
+エラー時は操作に必要な権限レベル (`readonly` or `full`) のコマンドが案内されます。
+
+#### 設定変更の反映
+
+```bash
+# .env を編集
+ACL_MODE=blacklist
+
+# ビルド + プッシュ + デプロイで反映
+yarn apply && yarn deploy
+```
 
 ---
 

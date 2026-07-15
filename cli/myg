@@ -216,12 +216,17 @@ if [[ "$action" == "acl" ]]; then
         ;;
     esac
   elif [[ "$acl_target" == "file" ]]; then
-    acl_file_id="${1:-}"
-    shift 2>/dev/null || true
-    acl_file_verb="${1:-}"
+    acl_file_id=""
+    acl_file_verb=""
+    for arg in "$@"; do
+      case "$arg" in
+        id=*) acl_file_id="${arg#id=}" ;;
+        deny|readonly|full) acl_file_verb="$arg" ;;
+      esac
+    done
 
     if [[ -z "$acl_file_id" ]]; then
-      echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2; exit 1
+      echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|full]" >&2; exit 1
     fi
 
     # Load token for file ACL operations
@@ -266,19 +271,19 @@ if [[ "$action" == "acl" ]]; then
         acl_file_confirm "This will set the file to READ-ONLY via myg."
         acl_file_set_props "r"
         ;;
-      allow)
+      full)
         acl_file_confirm "This will set the file to READ+WRITE via myg."
         acl_file_set_props "w"
         ;;
       *)
         echo "Unknown verb: $acl_file_verb" >&2
-        echo "Usage: myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+        echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|full]" >&2
         exit 1
         ;;
     esac
   else
     echo "Usage: myg acl command [deny|allow|remove|reset] [\"<command>\"]" >&2
-    echo "       myg acl file <FILE_ID> [deny|readonly|allow]" >&2
+    echo "       myg acl file id=<FILE_ID> [deny|readonly|full]" >&2
     exit 1
   fi
   exit 0
@@ -1317,6 +1322,28 @@ fi
 if echo "$response" | grep -qi '<html'; then
   echo "Error: Received HTML response. Your token may have expired." >&2
   echo "Run: myg auth" >&2
+  exit 1
+fi
+
+# Check for error response from GAS
+error_msg=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
+if [[ -n "$error_msg" ]]; then
+  # Split message at ". To " or ", run:" to separate explanation from hint
+  if [[ "$error_msg" == *". To "* ]]; then
+    error_text="${error_msg%%". To "*}"
+    hint_text="${error_msg#*". To "}"
+    # Extract the command after "run: "
+    hint_cmd=$(echo "$hint_text" | grep -oP '(?<=run: ).*' || true)
+    echo "Error: ${error_text#*: }" >&2
+    if [[ -n "$hint_cmd" ]]; then
+      echo "To fix, run:" >&2
+      echo "" >&2
+      echo "  $hint_cmd" >&2
+    fi
+  else
+    echo "Error: ${error_msg#*: }" >&2
+  fi
+
   exit 1
 fi
 
