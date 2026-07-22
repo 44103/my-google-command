@@ -180,7 +180,7 @@ myg sheet id=<XLSX_FILE_ID> "name=<SHEET_NAME>"     # XLSX のシートデータ
 myg docs                                            # 一覧取得
 myg doc id=<ID>                                     # ドキュメント内容取得
 myg doc "id=<URL>"                                  # URL でも OK
-myg doc tabs id=<ID>                                # タブ一覧
+myg doc tabs id=<ID>                                # タブ一覧 (ネスト構造で表示)
 
 # --- Docs (書き込み) ---
 myg doc create name="タイトル"                       # 新規作成

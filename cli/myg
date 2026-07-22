@@ -1321,7 +1321,7 @@ if echo "$response" | grep -qi '<html'; then
 fi
 
 # Check for error response from GAS
-error_msg=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
+error_msg=$(echo "$response" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
 if [[ -n "$error_msg" ]]; then
   # Split message at ". To " or ", run:" to separate explanation from hint
   if [[ "$error_msg" == *". To "* ]]; then
