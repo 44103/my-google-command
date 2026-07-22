@@ -10,3 +10,5 @@ yarn-error.log
 .token
 .permission.json
 *.code-workspace
+
+.daemon-pid

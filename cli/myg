@@ -24,6 +24,10 @@ fi
 
 TOKEN_FILE="$SCRIPT_DIR/../.token"
 BASE="https://script.google.com/macros/s/${ACTIVE_DEPLOY_ID}/exec"
+DAEMON_PORT="${MYG_DAEMON_PORT:-19287}"
+DAEMON_URL="http://127.0.0.1:${DAEMON_PORT}"
+DAEMON_PID_FILE="$SCRIPT_DIR/../.daemon-pid"
+DAEMON_SCRIPT="$SCRIPT_DIR/../daemon/index.js"
 
 show_help() {
   cat "$SCRIPT_DIR/help.txt"
@@ -42,6 +46,33 @@ open_browser() {
     echo "Open this URL in your browser:" >&2
     echo "$url" >&2
   fi
+}
+
+daemon_is_running() {
+  curl -s -o /dev/null -w "%{http_code}" "$DAEMON_URL/status" 2>/dev/null | grep -q "200"
+}
+
+daemon_start() {
+  if daemon_is_running; then
+    return 0
+  fi
+  MYG_DAEMON_PORT="$DAEMON_PORT" nohup node "$DAEMON_SCRIPT" >/dev/null 2>&1 &
+  # Wait for daemon to be ready
+  local retries=0
+  while ! daemon_is_running; do
+    retries=$((retries + 1))
+    if [[ $retries -gt 20 ]]; then
+      echo "Error: Failed to start myg daemon." >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+}
+
+daemon_has_token() {
+  local status
+  status=$(curl -s "$DAEMON_URL/status" 2>/dev/null)
+  echo "$status" | grep -q '"hasToken":true'
 }
 
 action="${1:---help}"
@@ -67,56 +98,87 @@ if [[ "$action" == "auth" ]]; then
     fi
   fi
 
-  echo "Opening browser for authentication..." >&2
+  # Start daemon (lazy start)
+  daemon_start
+  echo "Daemon started (port $DAEMON_PORT)." >&2
+
+  # Open auth URL with callback port
   if [[ -n "${GW_DOMAIN:-}" ]]; then
-    auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+    auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&port=$DAEMON_PORT"
   else
-    auth_url="${BASE}?action=auth"
+    auth_url="${BASE}?action=auth&port=$DAEMON_PORT"
   fi
+
+  echo "Opening browser for authentication..." >&2
   open_browser "$auth_url"
 
-  if [[ ! -t 0 ]]; then
-    echo "" >&2
-    echo "Non-interactive shell detected. Use 'myg token' instead:" >&2
-    echo "  1. Open: $auth_url" >&2
-    echo "  2. Copy the token, then run:" >&2
-    echo "     myg token <PASTE_TOKEN_HERE>" >&2
-    exit 1
-  fi
+  # Wait for token to arrive via callback
+  echo "Waiting for authentication..." >&2
+  retries=0
+  while ! daemon_has_token; do
+    retries=$((retries + 1))
+    if [[ $retries -gt 1200 ]]; then
+      echo "" >&2
+      echo "Timeout: No token received within 120 seconds." >&2
+      echo "You can also set the token manually: myg token <TOKEN>" >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
 
-  echo -n "Paste token: " >&2
-  read -r token
-  if [[ -z "$token" ]]; then
-    echo "" >&2
-    echo "Empty token. Use 'myg token' for non-interactive environments:" >&2
-    echo "  myg token <PASTE_TOKEN_HERE>" >&2
-    exit 1
-  fi
-  echo "$token" > "$TOKEN_FILE"
-  echo "Token saved." >&2
-
-  if [[ ! -f "$SCRIPT_DIR/../.permission.json" ]]; then
-    echo "" >&2
-    echo "Tip: You can create .permission.json to restrict available actions." >&2
-    echo "  See: ./scripts/install or README for details" >&2
-  fi
-
+  echo "Authentication complete." >&2
   exit 0
 fi
 
 if [[ "$action" == "token" ]]; then
   if [[ $# -gt 0 && -n "$1" ]]; then
-    echo "$1" > "$TOKEN_FILE"
-    echo "Token saved." >&2
+    # Start daemon if not running, then send token
+    daemon_start
+    curl -s -X POST "$DAEMON_URL/auth/callback" \
+      -H "Content-Type: application/json" \
+      -d "{\"token\":\"$1\"}" >/dev/null
+    echo "Token saved to daemon." >&2
   else
     if [[ -n "${GW_DOMAIN:-}" ]]; then
-      auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+      auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&port=$DAEMON_PORT"
     else
-      auth_url="${BASE}?action=auth"
+      auth_url="${BASE}?action=auth&port=$DAEMON_PORT"
     fi
     open_browser "$auth_url"
     echo "$auth_url"
   fi
+  exit 0
+fi
+
+if [[ "$action" == "daemon" ]]; then
+  subcmd="${1:-status}"
+  shift 2>/dev/null || true
+  case "$subcmd" in
+    start)
+      daemon_start
+      echo "Daemon running (port $DAEMON_PORT, pid $(cat "$DAEMON_PID_FILE" 2>/dev/null || echo '?'))." >&2
+      ;;
+    stop)
+      if daemon_is_running; then
+        curl -s -X POST "$DAEMON_URL/shutdown" >/dev/null
+        echo "Daemon stopped." >&2
+      else
+        echo "Daemon is not running." >&2
+      fi
+      ;;
+    status)
+      if daemon_is_running; then
+        curl -s "$DAEMON_URL/status" | jq .
+      else
+        echo "Daemon is not running." >&2
+        exit 1
+      fi
+      ;;
+    *)
+      echo "Usage: myg daemon [start|stop|status]" >&2
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 
@@ -291,10 +353,54 @@ fi
 
 if [[ -f "$TOKEN_FILE" ]]; then
   ACCESS_TOKEN=$(cat "$TOKEN_FILE")
+elif daemon_is_running && daemon_has_token; then
+  ACCESS_TOKEN="__DAEMON__"
 else
   echo "No credentials. Run: myg auth" >&2
   exit 1
 fi
+
+# When using daemon, proxy all requests through it
+if [[ "$ACCESS_TOKEN" == "__DAEMON__" ]]; then
+  USE_DAEMON=1
+else
+  USE_DAEMON=""
+fi
+
+# --- Daemon-aware request helpers ---
+# GET request to GAS (via daemon or direct)
+gas_get() {
+  local params=("$@")
+  if [[ -n "$USE_DAEMON" ]]; then
+    local params_json
+    params_json=$(printf '%s\n' "${params[@]}" | jq -R 'split("=") | {(.[0]): .[1:] | join("=")}' | jq -s 'add')
+    curl -s -X POST "$DAEMON_URL/proxy" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg url "$BASE" --argjson params "$params_json" '{gasUrl: $url, method: "GET", params: $params}')"
+  else
+    local curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}")
+    for p in "${params[@]}"; do
+      curl_args+=(--data-urlencode "$p")
+    done
+    curl "${curl_args[@]}" "$BASE"
+  fi
+}
+
+# POST request to GAS (via daemon or direct)
+gas_post() {
+  local body="$1"
+  if [[ -n "$USE_DAEMON" ]]; then
+    local post_body
+    post_body=$(echo "$body" | jq '.')
+    curl -s -X POST "$DAEMON_URL/proxy" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg url "$BASE" --argjson postBody "$post_body" '{gasUrl: $url, method: "POST", postBody: $postBody}')"
+  else
+    curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$body" "$BASE"
+  fi
+}
 
 curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}" --data-urlencode "action=${action}")
 
@@ -1313,10 +1419,18 @@ elif [[ -n "$doc_subaction" ]]; then
       -d "$json_body" "$BASE")
   fi
 else
-  for arg in "$@"; do
-    curl_args+=(--data-urlencode "$arg")
-  done
-  response=$(curl "${curl_args[@]}" "$BASE")
+  if [[ -n "$USE_DAEMON" ]]; then
+    local_params=("action=${action}")
+    for arg in "$@"; do
+      local_params+=("$arg")
+    done
+    response=$(gas_get "${local_params[@]}")
+  else
+    for arg in "$@"; do
+      curl_args+=(--data-urlencode "$arg")
+    done
+    response=$(curl "${curl_args[@]}" "$BASE")
+  fi
 fi
 
 if echo "$response" | grep -qi '<html'; then
