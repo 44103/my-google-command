@@ -2,7 +2,6 @@
 "use strict";
 
 const http = require("http");
-const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
@@ -42,39 +41,21 @@ function jsonResponse(res, status, data) {
 }
 
 function proxyToGas(method, gasUrl, headers, body) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(gasUrl);
-    const transport = url.protocol === "https:" ? https : http;
-    const options = {
-      hostname: url.hostname,
-      port: url.port || (url.protocol === "https:" ? 443 : 80),
-      path: url.pathname + url.search,
-      method,
-      headers: { ...headers },
+  const options = {
+    method,
+    headers: { ...headers },
+    redirect: "follow",
+  };
+  if (body) {
+    options.body = body;
+  }
+  return fetch(gasUrl, options).then(async (res) => {
+    const text = await res.text();
+    return {
+      status: res.status,
+      headers: Object.fromEntries(res.headers.entries()),
+      body: text,
     };
-
-    const req = transport.request(options, (res) => {
-      // Follow redirects (GAS always redirects)
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        proxyToGas(method, res.headers.location, headers, body)
-          .then(resolve)
-          .catch(reject);
-        return;
-      }
-      const chunks = [];
-      res.on("data", (chunk) => chunks.push(chunk));
-      res.on("end", () => {
-        resolve({
-          status: res.statusCode,
-          headers: res.headers,
-          body: Buffer.concat(chunks).toString(),
-        });
-      });
-    });
-
-    req.on("error", reject);
-    if (body) req.write(body);
-    req.end();
   });
 }
 
