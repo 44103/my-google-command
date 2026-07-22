@@ -10,11 +10,13 @@ GAS (Google Apps Script) を自分専用のプロキシとして使い、`curl` 
 **macOS / Linux:**
 
 - bash, curl, jq
+- Node.js 18 以上 (認証トークン管理デーモン用)
 - ブラウザ (初回認証用)
 
 **Windows:**
 
 - PowerShell 5.1 以上 (Windows 10 標準搭載)
+- Node.js 18 以上 (認証トークン管理デーモン用)
 - ブラウザ (初回認証用)
 
 ### セットアップ (macOS / Linux)
@@ -54,22 +56,39 @@ myg auth
 ```
 
 ブラウザが開きます。初回は Google の承認ダイアログが表示されるので、すべて許可してください。
-トークンが表示されたら「Copy Token」ボタンでコピーし、ターミナルに戻ってペーストしてください。
+認証が完了するとターミナルに `Authentication complete.` と表示されます。
 
 > トークンは約 1 時間で期限切れになります。切れたら再度 `myg auth` を実行してください。
 
 > `myg auth` 実行時に自動で `git pull` が行われます。更新があった場合はコミットログが表示されます。
 
-#### 非対話環境 (IDE・TUI) での認証
+#### 仕組み
 
-`myg auth` が stdin を待てない環境 (Kiro CLI、IDE 内ターミナル等) では、`myg token` を使ってください。
+`myg auth` を実行するとローカルに小さなデーモンプロセス (Node.js) が起動し、OAuth トークンをメモリ上にのみ保持します。
+トークンはファイルに書き出されないため、他のプロセスやツールからトークンを読み取ることはできません。
 
 ```bash
-# 認証 URL を表示
-myg token
+# デーモンの状態確認
+myg daemon status
 
-# ブラウザで URL を開き、トークンをコピーしてから保存
-myg token ya29.a0ARrdaM...
+# デーモンを停止 (トークンも破棄されます)
+myg daemon stop
+```
+
+#### カスタム CA 証明書 (SSL インスペクション環境)
+
+ネットワーク環境に SSL インスペクションプロキシ (Netskope, Zscaler 等) がある場合、デーモンの HTTPS 通信で証明書エラーが発生することがあります。
+その場合は環境変数 `NODE_EXTRA_CA_CERTS` に CA 証明書バンドルのパスを設定してください。
+
+```bash
+# Linux
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# macOS (Homebrew)
+export NODE_EXTRA_CA_CERTS=$(brew --prefix)/etc/ca-certificates/cert.pem
+
+# Windows (PowerShell) - パスは環境に合わせて変更
+$env:NODE_EXTRA_CA_CERTS = "C:\path\to\ca-bundle.crt"
 ```
 
 ### セットアップ (Windows)
@@ -111,7 +130,7 @@ myg auth
 ```
 
 ブラウザが開きます。初回は Google の承認ダイアログが表示されるので、すべて許可してください。
-トークンが表示されたら「Copy Token」ボタンでコピーし、ターミナルに戻ってペーストしてください。
+認証が完了するとターミナルに `Authentication complete.` と表示されます。
 
 > トークンは約 1 時間で期限切れになります。切れたら再度 `myg auth` を実行してください。
 
