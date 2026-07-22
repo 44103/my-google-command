@@ -7,7 +7,9 @@ $script:PipelineInput = @($input) -join [char]10
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 $EnvFile = Join-Path $ProjectDir ".env"
-$TokenFile = Join-Path $ProjectDir ".token"
+$DaemonScript = Join-Path $ProjectDir "daemon" "index.js"
+$DaemonPort = if ($env:MYG_DAEMON_PORT) { $env:MYG_DAEMON_PORT } else { "19287" }
+$DaemonUrl = "http://127.0.0.1:$DaemonPort"
 
 # Load .env
 if (-not (Test-Path $EnvFile)) { Write-Error ".env not found: $EnvFile"; exit 1 }
@@ -20,7 +22,16 @@ if (-not $DEPLOY_ID) { Write-Error "DEPLOY_ID not set in .env"; exit 1 }
 if (-not (Get-Variable -Name GW_DOMAIN -Scope Script -ErrorAction SilentlyContinue)) { $GW_DOMAIN = "" }
 if (-not (Get-Variable -Name DEV_DEPLOY_ID -Scope Script -ErrorAction SilentlyContinue)) { $DEV_DEPLOY_ID = "" }
 
-$Base = "https://script.google.com/macros/s/$DEPLOY_ID/exec"
+# Use DEV_DEPLOY_ID when on non-main branch inside the repo
+$ActiveDeployId = $DEPLOY_ID
+if ($DEV_DEPLOY_ID) {
+    try {
+        $_branch = git -C $ProjectDir rev-parse --abbrev-ref HEAD 2>$null
+        if ($_branch -and $_branch -ne "main") { $ActiveDeployId = $DEV_DEPLOY_ID }
+    } catch {}
+}
+
+$Base = "https://script.google.com/macros/s/$ActiveDeployId/exec"
 
 function Show-Help {
     Get-Content (Join-Path $PSScriptRoot "help.txt")
@@ -47,65 +58,61 @@ function Read-Stdin {
     return ""
 }
 
-Add-Type -AssemblyName System.Net.Http
-
-function Follow-Redirects {
-    param([string]$Url, [hashtable]$Headers, [string]$Method = "Get", [string]$ReqBody = $null, [string]$ContentType = $null)
-    $handler = New-Object System.Net.Http.HttpClientHandler
-    $handler.AllowAutoRedirect = $false
-    $client = New-Object System.Net.Http.HttpClient($handler)
+# --- Daemon management ---
+function Daemon-IsRunning {
     try {
-        for ($i = 0; $i -lt 6; $i++) {
-            $httpMethod = if ($Method -eq "Post") { [System.Net.Http.HttpMethod]::Post } else { [System.Net.Http.HttpMethod]::Get }
-            $req = New-Object System.Net.Http.HttpRequestMessage($httpMethod, $Url)
-            foreach ($k in $Headers.Keys) { $req.Headers.TryAddWithoutValidation($k, $Headers[$k]) | Out-Null }
-            if ($ReqBody -and $Method -eq "Post") {
-                $req.Content = New-Object System.Net.Http.StringContent($ReqBody, [System.Text.Encoding]::UTF8, "application/json")
-            }
-            $task = $client.SendAsync($req)
-            $task.Wait()
-            $resp = $task.Result
-            $code = [int]$resp.StatusCode
-            if ($code -in 301,302,303,307,308) {
-                $Url = [string]$resp.Headers.Location
-                if ($code -in 302, 303) { $Method = "Get"; $ReqBody = $null }
-            } elseif ($code -ge 200 -and $code -lt 300) {
-                $readTask = $resp.Content.ReadAsStringAsync()
-                $readTask.Wait()
-                return $readTask.Result
-            } else {
-                $readTask = $resp.Content.ReadAsStringAsync()
-                $readTask.Wait()
-                throw "HTTP $code : $($readTask.Result)"
-            }
+        $resp = Invoke-WebRequest -Uri "$DaemonUrl/status" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        return $resp.StatusCode -eq 200
+    } catch { return $false }
+}
+
+function Daemon-HasToken {
+    try {
+        $resp = Invoke-WebRequest -Uri "$DaemonUrl/status" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        return ($resp.Content | ConvertFrom-Json).hasToken -eq $true
+    } catch { return $false }
+}
+
+function Daemon-Start {
+    if (Daemon-IsRunning) { return }
+    $env:MYG_DAEMON_PORT = $DaemonPort
+    Start-Process -FilePath "node" -ArgumentList $DaemonScript -WindowStyle Hidden -PassThru | Out-Null
+    $retries = 0
+    while (-not (Daemon-IsRunning)) {
+        $retries++
+        if ($retries -gt 20) {
+            Write-Error "Failed to start myg daemon."
+            exit 1
         }
-        throw "Too many redirects"
-    } finally {
-        $client.Dispose()
+        Start-Sleep -Milliseconds 100
     }
 }
 
+# --- Request helpers (all requests proxied through daemon) ---
 function Invoke-Api {
     param(
         [string]$Method = "GET",
         [hashtable]$Query = @{},
         [hashtable]$Body = $null
     )
-    $headers = @{ Authorization = "Bearer $script:AccessToken" }
 
     if ($Method -eq "GET") {
-        $parts = @()
-        foreach ($k in $Query.Keys) {
-            $parts += "$k=$([uri]::EscapeDataString($Query[$k]))"
-        }
-        $url = "$Base`?$($parts -join '&')"
-        $content = Follow-Redirects -Url $url -Headers $headers
-        return $content
+        $proxyBody = @{
+            gasUrl = $Base
+            method = "GET"
+            params = $Query
+        } | ConvertTo-Json -Depth 10 -Compress
     } else {
-        $json = $Body | ConvertTo-Json -Depth 10 -Compress
-        $content = Follow-Redirects -Url $Base -Headers $headers -Method Post -ReqBody $json -ContentType "application/json; charset=utf-8"
-        return $content
+        $proxyBody = @{
+            gasUrl = $Base
+            method = "POST"
+            postBody = $Body
+        } | ConvertTo-Json -Depth 10 -Compress
     }
+
+    $resp = Invoke-WebRequest -Uri "$DaemonUrl/proxy" -Method Post `
+        -ContentType "application/json" -Body $proxyBody -UseBasicParsing -ErrorAction Stop
+    return $resp.Content
 }
 
 function Format-Output {
@@ -139,45 +146,81 @@ if ($action -in "--help", "-h", "help") { Show-Help }
 
 # Auth
 if ($action -eq "auth") {
-    # Auto-update check
+    # Auto-update check (only on main branch)
     try {
-        $oldRev = git -C $ProjectDir rev-parse HEAD 2>$null
-        git -C $ProjectDir fetch --quiet 2>$null
-        $newRev = git -C $ProjectDir rev-parse origin/main 2>$null
-        if ($oldRev -and $newRev -and $oldRev -ne $newRev) {
-            git -C $ProjectDir reset --hard origin/main --quiet 2>$null
-            $count = git -C $ProjectDir rev-list "$oldRev..$newRev" --count
-            Write-Host "Updated myg ($count new commit(s)):" -ForegroundColor Yellow
-            git -C $ProjectDir log --oneline "$oldRev..$newRev" | ForEach-Object { Write-Host "  - $_" }
-            Write-Host ""
+        $_currentBranch = git -C $ProjectDir rev-parse --abbrev-ref HEAD 2>$null
+        if ($_currentBranch -eq "main") {
+            $oldRev = git -C $ProjectDir rev-parse HEAD 2>$null
+            git -C $ProjectDir fetch --quiet 2>$null
+            $newRev = git -C $ProjectDir rev-parse origin/main 2>$null
+            if ($oldRev -and $newRev -and $oldRev -ne $newRev) {
+                git -C $ProjectDir reset --hard origin/main --quiet 2>$null
+                $count = git -C $ProjectDir rev-list "$oldRev..$newRev" --count
+                Write-Host "Updated myg ($count new commit(s)):" -ForegroundColor Yellow
+                git -C $ProjectDir log --oneline "$oldRev..$newRev" | ForEach-Object { Write-Host "  - $_" }
+                Write-Host ""
+            }
         }
     } catch {}
 
+    # Start daemon
+    Daemon-Start
+    Write-Host "Daemon started (port $DaemonPort)." -ForegroundColor Cyan
+
+    # Open auth URL with callback port
     $authUrl = if ($GW_DOMAIN) {
-        "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+        "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&port=$DaemonPort"
     } else {
-        "$Base`?action=auth"
+        "$Base`?action=auth&port=$DaemonPort"
     }
     Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
     Start-Process $authUrl
-    $token = Read-Host "Paste token"
-    Set-Content -Path $TokenFile -Value $token -NoNewline
-    Write-Host "Token saved." -ForegroundColor Green
+
+    # Wait for token to arrive via callback
+    Write-Host "Waiting for authentication..." -ForegroundColor Cyan
+    $retries = 0
+    while (-not (Daemon-HasToken)) {
+        $retries++
+        if ($retries -gt 1200) {
+            Write-Host ""
+            Write-Error "Timeout: No token received within 120 seconds.`nYou can also set the token manually: myg token <TOKEN>"
+            exit 1
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    Write-Host "Authentication complete." -ForegroundColor Green
     exit 0
 }
 
-if ($action -eq "token") {
-    if ($remaining.Count -gt 0 -and $remaining[0] -ne "") {
-        Set-Content -Path $TokenFile -Value $remaining[0] -NoNewline
-        Write-Host "Token saved." -ForegroundColor Green
-    } else {
-        if ($GW_DOMAIN) {
-            $authUrl = "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
-        } else {
-            $authUrl = "$Base`?action=auth"
+if ($action -eq "daemon") {
+    $subcmd = if ($remaining.Count -gt 0) { $remaining[0] } else { "status" }
+    switch ($subcmd) {
+        "start" {
+            Daemon-Start
+            $pid = if (Test-Path (Join-Path $ProjectDir ".daemon-pid")) { Get-Content (Join-Path $ProjectDir ".daemon-pid") } else { "?" }
+            Write-Host "Daemon running (port $DaemonPort, pid $pid)." -ForegroundColor Green
         }
-        Start-Process $authUrl
-        Write-Output $authUrl
+        "stop" {
+            if (Daemon-IsRunning) {
+                Invoke-WebRequest -Uri "$DaemonUrl/shutdown" -Method Post -UseBasicParsing | Out-Null
+                Write-Host "Daemon stopped." -ForegroundColor Yellow
+            } else {
+                Write-Host "Daemon is not running." -ForegroundColor Yellow
+            }
+        }
+        "status" {
+            if (Daemon-IsRunning) {
+                $resp = Invoke-WebRequest -Uri "$DaemonUrl/status" -UseBasicParsing
+                $resp.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+            } else {
+                Write-Host "Daemon is not running." -ForegroundColor Yellow
+                exit 1
+            }
+        }
+        default {
+            Write-Error "Usage: myg daemon [start|stop|status]"
+            exit 1
+        }
     }
     exit 0
 }
@@ -298,10 +341,8 @@ if ($action -eq "acl") {
             exit 1
         }
 
-        # Load token for file ACL operations
-        if (Test-Path $TokenFile) {
-            $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
-        } else {
+        # Require daemon with token for file ACL operations
+        if (-not (Daemon-IsRunning) -or -not (Daemon-HasToken)) {
             Write-Error "No credentials. Run: myg auth"
             exit 1
         }
@@ -351,10 +392,8 @@ if ($action -eq "acl") {
     exit 0
 }
 
-# Load token
-if (Test-Path $TokenFile) {
-    $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
-} else {
+# Require daemon with token
+if (-not (Daemon-IsRunning) -or -not (Daemon-HasToken)) {
     Write-Error "No credentials. Run: myg auth"
     exit 1
 }
