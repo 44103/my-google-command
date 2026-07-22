@@ -38,8 +38,17 @@ function createDoc(name: string, text?: string, format?: string): { id: string; 
   return { id: updated.getId(), name: updated.getName(), url: updated.getUrl(), body: updated.getBody().getText() };
 }
 
+function findTab(tabs: GoogleAppsScript.Document.Tab[], tabId: string): GoogleAppsScript.Document.Tab | undefined {
+  for (const tab of tabs) {
+    if (tab.getId() === tabId) return tab;
+    const found = findTab(tab.getChildTabs(), tabId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 function getTabBody(doc: GoogleAppsScript.Document.Document, tabId: string): GoogleAppsScript.Document.Body {
-  const tab = doc.getTabs().find((t) => t.getId() === tabId);
+  const tab = findTab(doc.getTabs(), tabId);
   if (!tab) throw new Error(`Tab not found: ${tabId}`);
   return tab.asDocumentTab().getBody();
 }
@@ -275,12 +284,17 @@ function overwriteDocTab(id: string, tabId: string, text: string): { name: strin
   return { name, body: text };
 }
 
-function listDocTabs(id: string): { id: string; title: string }[] {
+function listDocTabs(id: string): any[] {
   const doc = DocumentApp.openById(id);
-  return doc.getTabs().map((tab) => ({
-    id: tab.getId(),
-    title: tab.getTitle(),
-  }));
+  function buildTree(tabs: GoogleAppsScript.Document.Tab[]): any[] {
+    return tabs.map((tab) => {
+      const entry: any = { id: tab.getId(), title: tab.getTitle() };
+      const children = tab.getChildTabs();
+      if (children.length > 0) entry.children = buildTree(children);
+      return entry;
+    });
+  }
+  return buildTree(doc.getTabs());
 }
 
 function addDocTab(id: string, name: string, index?: number, parentTabId?: string): { tabId: string; title: string } {

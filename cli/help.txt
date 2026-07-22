@@ -29,7 +29,7 @@ Actions:
   doc overwrite id=<ID or URL>  Overwrite with text from stdin
     Options: format=markdown  Convert Markdown with styling
              tab=<TAB_ID>     Target a specific tab
-  doc tabs id=<ID or URL>       List tabs in a document
+  doc tabs id=<ID or URL>       List tabs in a document (nested)
   doc addtab id=<ID or URL> name="TITLE" [index=<N>] [parent=<TAB_ID>]  Add tab
   doc renametab id=<ID or URL> tab=<TAB_ID> name="NEW"  Rename tab
   doc movetab id=<ID or URL> tab=<TAB_ID> index=<N> [parent=<TAB_ID>]  Move/nest tab
