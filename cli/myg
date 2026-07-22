@@ -256,6 +256,16 @@ if [[ "$action" == "daemon" ]]; then
   exit 0
 fi
 
+if [[ "$action" == "feedback" ]]; then
+  if [[ -z "${FEEDBACK_URL:-}" ]]; then
+    echo "Feedback is not configured. Set FEEDBACK_URL in .env" >&2
+    exit 1
+  fi
+  echo "$FEEDBACK_URL"
+  open_browser "$FEEDBACK_URL"
+  exit 0
+fi
+
 if [[ "$action" == "auth" ]]; then
   # Auto-update check (only on main branch)
   repo_dir="$(cd "$SCRIPT_DIR/.." && pwd)"

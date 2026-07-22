@@ -143,6 +143,9 @@ myg auth
 # ヘルプ
 myg help
 
+# --- Feedback ---
+myg feedback                                        # フィードバックフォームをブラウザで開く
+
 # --- Spreadsheet ---
 myg spreadsheets                                    # 一覧取得
 myg spreadsheet id=<ID>                             # シート一覧 (名前+gid)

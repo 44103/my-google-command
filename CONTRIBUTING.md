@@ -169,6 +169,7 @@ yarn open  # GAS エディタを開く
 | `GW_ACCESS`     | Web App のアクセス範囲 (`DOMAIN` / `MYSELF`) | `DOMAIN`    |
 | `GW_DOMAIN`     | Google Workspace ドメイン                    | (未設定)    |
 | `ACL_MODE`      | ファイル ACL のデフォルトポリシー             | `whitelist` |
+| `FEEDBACK_URL`  | フィードバックフォームの URL                 | (未設定)    |
 
 ### ACL_MODE の詳細
 

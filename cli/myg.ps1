@@ -243,6 +243,17 @@ if ($action -eq "daemon") {
     exit 0
 }
 
+# Feedback
+if ($action -eq "feedback") {
+    if (-not (Get-Variable -Name FEEDBACK_URL -Scope Script -ErrorAction SilentlyContinue) -or -not $FEEDBACK_URL) {
+        Write-Error "Feedback is not configured. Set FEEDBACK_URL in .env"
+        exit 1
+    }
+    Write-Output $FEEDBACK_URL
+    Start-Process $FEEDBACK_URL
+    exit 0
+}
+
 # Auth
 if ($action -eq "auth") {
     # Auto-update check
