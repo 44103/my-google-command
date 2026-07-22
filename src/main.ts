@@ -12,6 +12,7 @@ function doGet(
     if (action === "auth") {
       const tmpl = HtmlService.createTemplateFromFile("auth");
       tmpl.token = ScriptApp.getOAuthToken();
+      tmpl.callbackPort = e.parameter.port || "19287";
       return tmpl.evaluate().setTitle("GAS Auth");
     }
 

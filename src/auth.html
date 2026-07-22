@@ -1,6 +1,67 @@
-<style>body{font-family:sans-serif;max-width:600px;margin:40px auto}textarea{width:100%;height:120px;font-family:monospace;font-size:14px;padding:10px;box-sizing:border-box}button{padding:8px 16px;font-size:14px;cursor:pointer;margin-top:8px}kbd{background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:12px}</style>
-<h2>Access Token</h2>
-<textarea id="t" readonly onclick="this.select()"><?= token ?></textarea>
-<button onclick="var t=document.getElementById('t');t.focus();t.select();document.execCommand('copy');this.textContent='✓ Copied!'">📋 Copy Token</button>
-<p style="color:#888;font-size:13px">Click to copy, or select the textarea and press <kbd>Ctrl+C</kbd> / <kbd>Cmd+C</kbd></p>
-<script>document.getElementById('t').select()</script>
+<style>body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 20px}button{padding:10px 20px;font-size:14px;cursor:pointer;margin-top:12px;border:none;border-radius:6px;color:#fff}#btn-auto{background:#1a73e8}#btn-auto:hover{background:#1557b0}#btn-auto:disabled{background:#ccc;cursor:default}#btn-copy{background:#5f6368;margin-left:8px}#btn-copy:hover{background:#3c4043}.status{margin-top:16px;padding:12px;border-radius:6px;font-size:14px}.success{background:#e6f4ea;color:#137333}.error{background:#fce8e6;color:#c5221f}.info{background:#e8f0fe;color:#1967d2}kbd{background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:12px}textarea{width:100%;height:80px;font-family:monospace;font-size:12px;padding:8px;box-sizing:border-box;margin-top:8px;display:none}</style>
+<h2>myg Authentication</h2>
+
+<div id="status" class="status info">Sending token to myg daemon...</div>
+
+<div id="manual-section" style="display:none">
+  <p style="color:#5f6368;font-size:13px">Auto-send failed. Copy the token manually and run <kbd>myg token &lt;paste&gt;</kbd></p>
+  <textarea id="t" readonly onclick="this.select()"><?= token ?></textarea>
+  <button id="btn-copy" onclick="copyToken()">&#128203; Copy Token</button>
+</div>
+
+<div id="actions">
+  <button id="btn-auto" disabled>Sending...</button>
+</div>
+
+<script>
+var token = document.getElementById('t') ? document.getElementById('t').textContent.trim() : '';
+var callbackPort = <?= callbackPort ?>;
+var callbackUrl = 'http://127.0.0.1:' + callbackPort + '/auth/callback';
+
+function setStatus(msg, type) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+function showManual() {
+  document.getElementById('manual-section').style.display = 'block';
+  document.getElementById('t').style.display = 'block';
+  document.getElementById('actions').style.display = 'none';
+}
+
+function copyToken() {
+  var t = document.getElementById('t');
+  t.focus();
+  t.select();
+  document.execCommand('copy');
+  document.getElementById('btn-copy').textContent = '\u2713 Copied!';
+}
+
+// Auto-send token to daemon
+function sendToken() {
+  fetch(callbackUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: token })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      setStatus('\u2713 Authentication complete! You can close this tab.', 'success');
+      document.getElementById('actions').style.display = 'none';
+      // Try to redirect to close-friendly page
+      setTimeout(function() { window.close(); }, 1500);
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  })
+  .catch(function(err) {
+    setStatus('Could not reach myg daemon: ' + err.message, 'error');
+    showManual();
+  });
+}
+
+// Run on page load
+sendToken();
+</script>
