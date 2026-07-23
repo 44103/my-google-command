@@ -258,22 +258,97 @@ if [[ "$action" == "acl" ]]; then
       fi
     }
 
+    acl_file_format_set_response() {
+      local resp="$1"
+      local name acl storage
+      name=$(echo "$resp" | jq -r '.name // "unknown"')
+      acl=$(echo "$resp" | jq -r '.acl // "?"')
+      storage=$(echo "$resp" | jq -r '.storage // "file"')
+
+      local acl_label
+      case "$acl" in
+        "-") acl_label="denied (no access)" ;;
+        "r") acl_label="readonly" ;;
+        "w") acl_label="full (read+write)" ;;
+        *)   acl_label="$acl" ;;
+      esac
+
+      if [[ "$storage" == "cache" ]]; then
+        acl_label="$acl_label (temporary, expires in 10 minutes)"
+      else
+        acl_label="$acl_label (persistent)"
+      fi
+
+      echo "File:  $name" >&2
+      echo "ACL:   $acl_label" >&2
+    }
+
+    acl_file_format_get_response() {
+      local resp="$1"
+      local name id acl source
+      name=$(echo "$resp" | jq -r '.name // "unknown"')
+      id=$(echo "$resp" | jq -r '.id // "?"')
+      acl=$(echo "$resp" | jq -r '.properties.acl // empty')
+      source=$(echo "$resp" | jq -r '.properties._source // empty')
+
+      echo "File: $name"
+      echo "ID:   $id"
+
+      if [[ -z "$acl" ]]; then
+        echo "ACL:  (not set)"
+      else
+        local acl_label
+        case "$acl" in
+          "-") acl_label="denied (no access)" ;;
+          "r") acl_label="readonly" ;;
+          "w") acl_label="full (read+write)" ;;
+          *)   acl_label="$acl" ;;
+        esac
+        if [[ "$source" == "cache" ]]; then
+          echo "ACL:  $acl_label (temporary)"
+        else
+          echo "ACL:  $acl_label"
+        fi
+      fi
+    }
+
     case "$acl_file_verb" in
       "")
-        curl -s -L -H "Authorization: Bearer ${_tk}" \
-          -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE"
+        _resp=$(curl -s -L -H "Authorization: Bearer ${_tk}" \
+          -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE")
+        # Check for error
+        _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
+        if [[ -n "$_err" ]]; then
+          echo "Error: $_err" >&2; exit 1
+        fi
+        acl_file_format_get_response "$_resp"
         ;;
       deny)
         acl_file_confirm "WARNING: This will DENY all myg access (read & write) to this file."
-        acl_file_set_props "-"
+        _resp=$(acl_file_set_props "-")
+        _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
+        if [[ -n "$_err" ]]; then
+          echo "Error: $_err" >&2; exit 1
+        fi
+        acl_file_format_set_response "$_resp"
         ;;
       readonly)
         acl_file_confirm "This will set the file to READ-ONLY via myg."
-        acl_file_set_props "r"
+        _resp=$(acl_file_set_props "r")
+        _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
+        if [[ -n "$_err" ]]; then
+          echo "Error: $_err" >&2; exit 1
+        fi
+        acl_file_format_set_response "$_resp"
         ;;
       full)
         acl_file_confirm "This will set the file to READ+WRITE via myg."
-        acl_file_set_props "w"
+        _resp=$(acl_file_set_props "w")
+        _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
+        if [[ -n "$_err" ]]; then
+          echo "Error: $_err" >&2; exit 1
+        fi
+        acl_file_format_set_response "$_resp"
         ;;
       *)
         echo "Unknown verb: $acl_file_verb" >&2

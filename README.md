@@ -378,6 +378,20 @@ myg acl file id=<FILE_ID> readonly
 myg acl file id=<FILE_ID> full
 ```
 
+##### 閲覧のみファイルの ACL
+
+Drive 上で「閲覧のみ」のファイルに対して ACL を設定した場合、永続的な保存ができないため、ACL は一時的に保存されます。
+
+- **persistent**: 編集権限があるファイル。永続的に保存され、設定者情報も記録される
+- **temporary**: 閲覧のみファイル。10分間有効で、期限切れ後は再設定が必要
+
+CLI の出力で保存状態を確認できます:
+
+```
+File:  共有ドキュメント
+ACL:   readonly (temporary, expires in 10 minutes)
+```
+
 #### ファイル ACL モード (ACL_MODE)
 
 `.env` の `ACL_MODE` でファイルアクセスの既定ポリシーを切り替えられます。
