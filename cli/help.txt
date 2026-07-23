@@ -3,9 +3,10 @@ myg - My Google Workspace CLI
 Usage: myg <action> [key=value ...]
 
 Actions:
-  auth                          Authenticate via browser (auto-callback)
+  auth                          Authenticate via browser and save token
   whoami                        Show current authenticated user
-  daemon [start|stop|status]    Manage the local token daemon
+  token                         Show auth URL (for non-interactive use)
+  token <TOKEN>                 Save token directly
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet (name+gid)
   spreadsheet create name="TITLE"  Create new spreadsheet

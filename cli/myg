@@ -22,11 +22,8 @@ if [ -n "${DEV_DEPLOY_ID:-}" ]; then
   fi
 fi
 
+TOKEN_FILE="$SCRIPT_DIR/../.token"
 BASE="https://script.google.com/macros/s/${ACTIVE_DEPLOY_ID}/exec"
-DAEMON_PORT="${MYG_DAEMON_PORT:-19287}"
-DAEMON_URL="http://127.0.0.1:${DAEMON_PORT}"
-DAEMON_PID_FILE="$SCRIPT_DIR/../.daemon-pid"
-DAEMON_SCRIPT="$SCRIPT_DIR/../daemon/index.js"
 
 show_help() {
   cat "$SCRIPT_DIR/help.txt"
@@ -47,33 +44,6 @@ open_browser() {
   fi
 }
 
-daemon_is_running() {
-  curl -s -o /dev/null -w "%{http_code}" "$DAEMON_URL/status" 2>/dev/null | grep -q "200"
-}
-
-daemon_start() {
-  if daemon_is_running; then
-    return 0
-  fi
-  MYG_DAEMON_PORT="$DAEMON_PORT" ${NODE_EXTRA_CA_CERTS:+NODE_EXTRA_CA_CERTS="$NODE_EXTRA_CA_CERTS"} nohup node "$DAEMON_SCRIPT" >/dev/null 2>&1 &
-  # Wait for daemon to be ready
-  local retries=0
-  while ! daemon_is_running; do
-    retries=$((retries + 1))
-    if [[ $retries -gt 20 ]]; then
-      echo "Error: Failed to start myg daemon." >&2
-      exit 1
-    fi
-    sleep 0.1
-  done
-}
-
-daemon_has_token() {
-  local status
-  status=$(curl -s "$DAEMON_URL/status" 2>/dev/null)
-  echo "$status" | grep -q '"hasToken":true'
-}
-
 action="${1:---help}"
 shift 2>/dev/null || true
 
@@ -82,85 +52,71 @@ if [[ "$action" == "--help" || "$action" == "-h" || "$action" == "help" ]]; then
 fi
 
 if [[ "$action" == "auth" ]]; then
-  # Auto-update check (only on main branch)
+  # Auto-update check
   repo_dir="$(cd "$SCRIPT_DIR/.." && pwd)"
   if git -C "$repo_dir" rev-parse --is-inside-work-tree &>/dev/null; then
-    _current_branch=$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-    if [[ "$_current_branch" == "main" ]]; then
-      old_rev=$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null)
-      git -C "$repo_dir" fetch --quiet 2>/dev/null
-      new_rev=$(git -C "$repo_dir" rev-parse origin/main 2>/dev/null)
-      if [[ -n "$old_rev" && -n "$new_rev" && "$old_rev" != "$new_rev" ]]; then
-        git -C "$repo_dir" reset --hard origin/main --quiet 2>/dev/null
-        count=$(git -C "$repo_dir" rev-list "$old_rev..$new_rev" --count 2>/dev/null || echo "?")
-        echo "Updated myg ($count new commit(s)):" >&2
-        git -C "$repo_dir" log --oneline "$old_rev..$new_rev" 2>/dev/null | sed 's/^/  - /' >&2
-        echo "" >&2
-      fi
+    old_rev=$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null)
+    git -C "$repo_dir" fetch --quiet 2>/dev/null
+    new_rev=$(git -C "$repo_dir" rev-parse origin/main 2>/dev/null)
+    if [[ -n "$old_rev" && -n "$new_rev" && "$old_rev" != "$new_rev" ]]; then
+      git -C "$repo_dir" reset --hard origin/main --quiet 2>/dev/null
+      count=$(git -C "$repo_dir" rev-list "$old_rev..$new_rev" --count 2>/dev/null || echo "?")
+      echo "Updated myg ($count new commit(s)):" >&2
+      git -C "$repo_dir" log --oneline "$old_rev..$new_rev" 2>/dev/null | sed 's/^/  - /' >&2
+      echo "" >&2
     fi
-  fi
-
-  # Start daemon (lazy start)
-  daemon_start
-  echo "Daemon started (port $DAEMON_PORT)." >&2
-
-  # Open auth URL with callback port
-  if [[ -n "${GW_DOMAIN:-}" ]]; then
-    auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&port=$DAEMON_PORT"
-  else
-    auth_url="${BASE}?action=auth&port=$DAEMON_PORT"
   fi
 
   echo "Opening browser for authentication..." >&2
+  if [[ -n "${GW_DOMAIN:-}" ]]; then
+    auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+  else
+    auth_url="${BASE}?action=auth"
+  fi
   open_browser "$auth_url"
 
-  # Wait for token to arrive via callback
-  echo "Waiting for authentication..." >&2
-  retries=0
-  while ! daemon_has_token; do
-    retries=$((retries + 1))
-    if [[ $retries -gt 1200 ]]; then
-      echo "" >&2
-      echo "Timeout: No token received within 120 seconds." >&2
-      echo "You can also set the token manually: myg token <TOKEN>" >&2
-      exit 1
-    fi
-    sleep 0.1
-  done
+  if [[ ! -t 0 ]]; then
+    echo "" >&2
+    echo "Non-interactive shell detected. Use 'myg token' instead:" >&2
+    echo "  1. Open: $auth_url" >&2
+    echo "  2. Copy the token, then run:" >&2
+    echo "     myg token <PASTE_TOKEN_HERE>" >&2
+    exit 1
+  fi
 
-  echo "Authentication complete." >&2
+  echo -n "Paste token: " >&2
+  read -r token
+  if [[ -z "$token" ]]; then
+    echo "" >&2
+    echo "Empty token. Use 'myg token' for non-interactive environments:" >&2
+    echo "  myg token <PASTE_TOKEN_HERE>" >&2
+    exit 1
+  fi
+  echo "$token" > "$TOKEN_FILE"
+  echo "Token saved." >&2
+
+  if [[ ! -f "$SCRIPT_DIR/../.permission.json" ]]; then
+    echo "" >&2
+    echo "Tip: You can create .permission.json to restrict available actions." >&2
+    echo "  See: ./scripts/install or README for details" >&2
+  fi
+
   exit 0
 fi
 
-if [[ "$action" == "daemon" ]]; then
-  subcmd="${1:-status}"
-  shift 2>/dev/null || true
-  case "$subcmd" in
-    start)
-      daemon_start
-      echo "Daemon running (port $DAEMON_PORT, pid $(cat "$DAEMON_PID_FILE" 2>/dev/null || echo '?'))." >&2
-      ;;
-    stop)
-      if daemon_is_running; then
-        curl -s -X POST "$DAEMON_URL/shutdown" >/dev/null
-        echo "Daemon stopped." >&2
-      else
-        echo "Daemon is not running." >&2
-      fi
-      ;;
-    status)
-      if daemon_is_running; then
-        curl -s "$DAEMON_URL/status" | jq .
-      else
-        echo "Daemon is not running." >&2
-        exit 1
-      fi
-      ;;
-    *)
-      echo "Usage: myg daemon [start|stop|status]" >&2
-      exit 1
-      ;;
-  esac
+if [[ "$action" == "token" ]]; then
+  if [[ $# -gt 0 && -n "$1" ]]; then
+    echo "$1" > "$TOKEN_FILE"
+    echo "Token saved." >&2
+  else
+    if [[ -n "${GW_DOMAIN:-}" ]]; then
+      auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
+    else
+      auth_url="${BASE}?action=auth"
+    fi
+    open_browser "$auth_url"
+    echo "$auth_url"
+  fi
   exit 0
 fi
 
@@ -273,19 +229,20 @@ if [[ "$action" == "acl" ]]; then
       echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|full]" >&2; exit 1
     fi
 
-    # ACL file operations require daemon
-    if ! daemon_is_running || ! daemon_has_token; then
+    # Load token for file ACL operations
+    if [[ -f "$TOKEN_FILE" ]]; then
+      _tk=$(cat "$TOKEN_FILE")
+    else
       echo "No credentials. Run: myg auth" >&2; exit 1
     fi
 
     acl_file_set_props() {
       local value="$1"
-      local body
-      body=$(jq -n --arg action "file:props:set" --arg id "$acl_file_id" --arg value "$value" \
+      json_body=$(jq -n --arg action "file:props:set" --arg id "$acl_file_id" --arg value "$value" \
         '{action: $action, id: $id, value: $value}')
-      curl -s -X POST "$DAEMON_URL/proxy" \
+      curl -s -L -H "Authorization: Bearer ${_tk}" \
         -H "Content-Type: application/json" \
-        -d "$(jq -n --arg url "$BASE" --argjson postBody "$body" '{gasUrl: $url, method: "POST", postBody: $postBody}')"
+        -d "$json_body" "$BASE"
     }
 
     acl_file_confirm() {
@@ -303,11 +260,8 @@ if [[ "$action" == "acl" ]]; then
 
     case "$acl_file_verb" in
       "")
-        local params_json
-        params_json=$(jq -n '{action: "file:props", id: $id}' --arg id "$acl_file_id")
-        curl -s -X POST "$DAEMON_URL/proxy" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n --arg url "$BASE" --argjson params "$params_json" '{gasUrl: $url, method: "GET", params: $params}')"
+        curl -s -L -H "Authorization: Bearer ${_tk}" \
+          -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE"
         ;;
       deny)
         acl_file_confirm "WARNING: This will DENY all myg access (read & write) to this file."
@@ -335,29 +289,14 @@ if [[ "$action" == "acl" ]]; then
   exit 0
 fi
 
-if ! daemon_is_running || ! daemon_has_token; then
+if [[ -f "$TOKEN_FILE" ]]; then
+  ACCESS_TOKEN=$(cat "$TOKEN_FILE")
+else
   echo "No credentials. Run: myg auth" >&2
   exit 1
 fi
 
-# --- Request helpers (all requests proxied through daemon) ---
-gas_get() {
-  local params=("$@")
-  local params_json
-  params_json=$(printf '%s\n' "${params[@]}" | jq -R 'split("=") | {(.[0]): .[1:] | join("=")}' | jq -s 'add')
-  curl -s -X POST "$DAEMON_URL/proxy" \
-    -H "Content-Type: application/json" \
-    -d "$(jq -n --arg url "$BASE" --argjson params "$params_json" '{gasUrl: $url, method: "GET", params: $params}')"
-}
-
-gas_post() {
-  local body="$1"
-  local post_body
-  post_body=$(echo "$body" | jq '.')
-  curl -s -X POST "$DAEMON_URL/proxy" \
-    -H "Content-Type: application/json" \
-    -d "$(jq -n --arg url "$BASE" --argjson postBody "$post_body" '{gasUrl: $url, method: "POST", postBody: $postBody}')"
-}
+curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}" --data-urlencode "action=${action}")
 
 # Permission check via .permission.json
 check_permission() {
@@ -576,15 +515,12 @@ if [[ -n "$gas_subaction" ]]; then
       max=*)    g_max="${arg#max=}" ;;
     esac
   done
-  local_params=("action=gas:${gas_subaction}")
-
-  [[ -n "$g_script" ]] && local_params+=("script=${g_script}")
-
-  [[ -n "$g_name" ]] && local_params+=("name=${g_name}")
-
-  [[ -n "$g_max" ]] && local_params+=("max=${g_max}")
-
-  response=$(gas_get "${local_params[@]}")
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=gas:${gas_subaction}")
+  [[ -n "$g_script" ]] && curl_args+=(--data-urlencode "script=${g_script}")
+  [[ -n "$g_name" ]] && curl_args+=(--data-urlencode "name=${g_name}")
+  [[ -n "$g_max" ]] && curl_args+=(--data-urlencode "max=${g_max}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 elif [[ -n "$tasks_subaction" ]]; then
   tc_id=""
   for arg in "$@"; do
@@ -592,7 +528,8 @@ elif [[ -n "$tasks_subaction" ]]; then
       id=*) tc_id="${arg#id=}" ;;
     esac
   done
-  response=$(gas_get "action=tasks:completed" "id=${tc_id}")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=tasks:completed" --data-urlencode "id=${tc_id}" "$BASE")
 elif [[ -n "$files_subaction" ]]; then
   fs_q=""
   fs_max=""
@@ -602,7 +539,8 @@ elif [[ -n "$files_subaction" ]]; then
       max=*) fs_max="${arg#max=}" ;;
     esac
   done
-  response=$(gas_get "action=files:search" "q=${fs_q}" "max=${fs_max:-20}")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=files:search" --data-urlencode "q=${fs_q}" --data-urlencode "max=${fs_max:-20}" "$BASE")
 elif [[ -n "$contacts_subaction" ]]; then
   c_q=""
   c_max=""
@@ -612,7 +550,8 @@ elif [[ -n "$contacts_subaction" ]]; then
       max=*) c_max="${arg#max=}" ;;
     esac
   done
-  response=$(gas_get "action=contacts:search" "q=${c_q}" "max=${c_max:-20}")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=contacts:search" --data-urlencode "q=${c_q}" --data-urlencode "max=${c_max:-20}" "$BASE")
 elif [[ -n "$form_subaction" ]]; then
   fm_id=""
   fm_name=""
@@ -642,7 +581,8 @@ elif [[ -n "$form_subaction" ]]; then
   done
 
   if [[ "$form_subaction" == "responses" ]]; then
-    response=$(gas_get "action=form:responses" "id=${fm_id}")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      "${BASE}?action=form:responses&id=${fm_id}")
   else
     json_body=$(jq -n \
       --arg sub "$form_subaction" \
@@ -659,7 +599,9 @@ elif [[ -n "$form_subaction" ]]; then
       --arg highLabel "$fm_highLabel" \
       '{action: ("form:" + $sub), id: $id, name: $name, description: $description, type: $type, title: $title, choices: $choices, required: $required, low: $low, high: $high, lowLabel: $lowLabel, highLabel: $highLabel}')
 
-    response=$(gas_post "$json_body")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
   fi
 elif [[ -n "$comment_subaction" ]]; then
   cm_id=""
@@ -694,7 +636,9 @@ elif [[ -n "$comment_subaction" ]]; then
       '{action: ("comment:" + $sub), id: $id, comment: $comment, text: $text}')
   fi
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$slide_notes" ]]; then
   sn_id=""
   sn_page=""
@@ -704,11 +648,11 @@ elif [[ -n "$slide_notes" ]]; then
       page=*) sn_page="${arg#page=}" ;;
     esac
   done
-  local_params=("action=slide:notes" "id=${sn_id}")
-
-  [[ -n "$sn_page" ]] && local_params+=("page=${sn_page}")
-
-  response=$(gas_get "${local_params[@]}")
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=slide:notes")
+  curl_args+=(--data-urlencode "id=${sn_id}")
+  [[ -n "$sn_page" ]] && curl_args+=(--data-urlencode "page=${sn_page}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 elif [[ -n "$slide_note_set" ]]; then
   sn_id=""
   sn_page=""
@@ -731,7 +675,9 @@ elif [[ -n "$slide_note_set" ]]; then
     --arg page "$sn_page" \
     --arg text "$stdin_text" \
     '{action: "slide:note:set", id: $id, page: $page, text: $text}')
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$slide_note_clear" ]]; then
   sn_id=""
   sn_page=""
@@ -745,7 +691,9 @@ elif [[ -n "$slide_note_clear" ]]; then
     --arg id "$sn_id" \
     --arg page "$sn_page" \
     '{action: "slide:note:clear", id: $id, page: $page}')
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$slide_subaction" ]]; then
   sl_id=""
   sl_name=""
@@ -775,7 +723,9 @@ elif [[ -n "$slide_subaction" ]]; then
     --arg format "$sl_format" \
     '{action: ("slide:" + $sub), id: $id, name: $name, page: $page, text: $text, format: $format}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$file_subaction" ]]; then
   fu_id=""
   fu_folder=""
@@ -809,7 +759,8 @@ elif [[ -n "$file_subaction" ]]; then
   if [[ "$file_subaction" == "share" ]]; then
     if [[ -z "$fu_role" ]]; then
       # GET: list permissions
-      response=$(gas_get "action=file:share" "id=${fu_id}")
+      response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        -G --data-urlencode "action=file:share" --data-urlencode "id=${fu_id}" "$BASE")
     else
       # POST: add permission
       share_type="${fu_type:-user}"
@@ -820,18 +771,25 @@ elif [[ -n "$file_subaction" ]]; then
         --arg role "$fu_role" \
         --arg value "$share_value" \
         '{action: "file:share", id: $id, type: $type, role: $role, value: $value}')
-      response=$(gas_post "$json_body")
+      response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "$json_body" "$BASE")
     fi
   elif [[ "$file_subaction" == "unshare" ]]; then
     json_body=$(jq -n \
       --arg id "$fu_id" \
       --arg permission "$fu_permission" \
       '{action: "file:unshare", id: $id, permission: $permission}')
-    response=$(gas_post "$json_body")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
   elif [[ "$file_subaction" == "diff" ]]; then
-    response=$(gas_get "action=file:revision" "id=${fu_id}" "rev1=${fu_rev1}" "rev2=${fu_rev2}")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:revision" --data-urlencode "id=${fu_id}" \
+      --data-urlencode "rev1=${fu_rev1}" --data-urlencode "rev2=${fu_rev2}" "$BASE")
   elif [[ "$file_subaction" == "history" ]]; then
-    response=$(gas_get "action=file:history" "id=${fu_id}" "max=${fu_max:-20}")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:history" --data-urlencode "id=${fu_id}" --data-urlencode "max=${fu_max:-20}" "$BASE")
   elif [[ "$file_subaction" == "upload" ]]; then
     if [[ -n "$fu_file" ]]; then
       fu_tmp=$(mktemp)
@@ -857,7 +815,9 @@ elif [[ -n "$file_subaction" ]]; then
       '{action: "file:upload", folder: $folder, name: $name, data: $data, isBase64: $isBase64, mimeType: $mimeType}' > "$fu_json"
     rm -f "$fu_tmp"
 
-    response=$(gas_post "$(cat "$fu_json")")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d @"$fu_json" "$BASE")
     rm -f "$fu_json"
   else
     json_body=$(jq -n \
@@ -867,12 +827,16 @@ elif [[ -n "$file_subaction" ]]; then
       --arg name "$fu_name" \
       '{action: $action, id: $id, folder: $folder, name: $name}')
 
-    response=$(gas_post "$json_body")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
   fi
 elif [[ "$mail_subaction" == "filters" ]]; then
-  response=$(gas_get "action=mail:filters")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    "${BASE}?action=mail:filters")
 elif [[ "$mail_subaction" == "labels" ]]; then
-  response=$(gas_get "action=mail:labels")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    "${BASE}?action=mail:labels")
 elif [[ "$mail_subaction" == "label" ]]; then
   ml_query=""
   ml_label=""
@@ -891,7 +855,9 @@ elif [[ "$mail_subaction" == "label" ]]; then
     --arg skipInbox "$ml_skip_inbox" \
     '{action: "mail:label", query: $query, label: $label, skipInbox: $skipInbox}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:delete" ]]; then
   f_id=""
   f_query=""
@@ -917,7 +883,9 @@ elif [[ "$mail_subaction" == "filter:create" || "$mail_subaction" == "filter:del
     --arg markAsRead "$f_mark_as_read" \
     '{action: ("mail:" + $sub), id: $id, query: $query, label: $label, skipInbox: $skipInbox, markAsRead: $markAsRead}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ "$event_subaction" == "freebusy" ]]; then
   ev_emails=""
   ev_from=""
@@ -931,7 +899,10 @@ elif [[ "$event_subaction" == "freebusy" ]]; then
       duration=*) ev_duration="${arg#duration=}" ;;
     esac
   done
-  response=$(gas_get "action=event:freebusy" "emails=${ev_emails}" "from=${ev_from}" "to=${ev_to}" "duration=${ev_duration}")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=event:freebusy" --data-urlencode "emails=${ev_emails}" \
+    --data-urlencode "from=${ev_from}" --data-urlencode "to=${ev_to}" \
+    --data-urlencode "duration=${ev_duration}" "$BASE")
 elif [[ "$event_subaction" == "rooms" ]]; then
   ev_q=""
   for arg in "$@"; do
@@ -939,7 +910,8 @@ elif [[ "$event_subaction" == "rooms" ]]; then
       q=*) ev_q="${arg#q=}" ;;
     esac
   done
-  response=$(gas_get "action=rooms" "q=${ev_q}")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -G --data-urlencode "action=rooms" --data-urlencode "q=${ev_q}" "$BASE")
 elif [[ -n "$event_subaction" ]]; then
   ev_id=""
   ev_title=""
@@ -983,7 +955,9 @@ elif [[ -n "$event_subaction" ]]; then
     --arg reminders "$ev_reminders" \
     '{action: ("event:" + $sub), id: $id, event: $event, title: $title, start: $start, end: $end, location: $location, color: $color, description: $description, guests: $guests, visibility: $visibility, reminders: $reminders}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ "$mail_subaction" == "draft:delete" ]]; then
   m_id=""
   for arg in "$@"; do
@@ -994,7 +968,9 @@ elif [[ "$mail_subaction" == "draft:delete" ]]; then
 
   json_body=$(jq -n --arg id "$m_id" '{action: "mail:draft:delete", id: $id}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$mail_subaction" ]]; then
   m_to=""
   m_subject=""
@@ -1025,7 +1001,9 @@ elif [[ -n "$mail_subaction" ]]; then
     --arg bcc "$m_bcc" \
     '{action: "mail:draft", id: $id, to: $to, subject: $subject, text: $text, cc: $cc, bcc: $bcc}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$task_subaction" ]]; then
   t_id=""
   t_title=""
@@ -1054,7 +1032,9 @@ elif [[ -n "$task_subaction" ]]; then
     --arg parent "$t_parent" \
     '{action: ("task:" + $sub), id: $id, title: $title, due: $due, task: $task, notes: $notes, parent: $parent}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$tasklist_subaction" ]]; then
   tl_id=""
   tl_title=""
@@ -1071,7 +1051,9 @@ elif [[ -n "$tasklist_subaction" ]]; then
     --arg title "$tl_title" \
     '{action: ("tasklist:" + $sub), id: $id, title: $title}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$spreadsheet_create" ]]; then
   sp_name=""
   for arg in "$@"; do
@@ -1082,7 +1064,9 @@ elif [[ -n "$spreadsheet_create" ]]; then
 
   json_body=$(jq -n --arg name "$sp_name" '{action: "spreadsheet:create", name: $name}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_create" ]]; then
   sc_id=""
   sc_name=""
@@ -1098,7 +1082,9 @@ elif [[ -n "$sheet_create" ]]; then
     --arg name "$sc_name" \
     '{action: "sheet:create", id: $id, name: $name}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_delete" ]]; then
   sd_id=""
   sd_name=""
@@ -1114,7 +1100,9 @@ elif [[ -n "$sheet_delete" ]]; then
     --arg name "$sd_name" \
     '{action: "sheet:delete", id: $id, name: $name}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_rename" ]]; then
   sr_id=""
   sr_name=""
@@ -1133,7 +1121,9 @@ elif [[ -n "$sheet_rename" ]]; then
     --arg newName "$sr_newname" \
     '{action: "sheet:rename", id: $id, name: $name, newName: $newName}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_lastrow" ]]; then
   sl_id=""
   sl_name=""
@@ -1144,7 +1134,11 @@ elif [[ -n "$sheet_lastrow" ]]; then
     esac
   done
   sl_id=$(resolve_id "$sl_id")
-  response=$(gas_get "action=sheet:lastrow" "id=${sl_id}" "name=${sl_name}")
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=sheet:lastrow")
+  curl_args+=(--data-urlencode "id=${sl_id}")
+  curl_args+=(--data-urlencode "name=${sl_name}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 elif [[ -n "$sheet_notes" ]]; then
   sn_id=""
   sn_name=""
@@ -1156,11 +1150,12 @@ elif [[ -n "$sheet_notes" ]]; then
       range=*) sn_range="${arg#range=}" ;;
     esac
   done
-  local_params=("action=sheet:notes" "id=${sn_id}" "name=${sn_name}")
-
-  [[ -n "$sn_range" ]] && local_params+=("range=${sn_range}")
-
-  response=$(gas_get "${local_params[@]}")
+  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
+  curl_args+=(--data-urlencode "action=sheet:notes")
+  curl_args+=(--data-urlencode "id=${sn_id}")
+  curl_args+=(--data-urlencode "name=${sn_name}")
+  [[ -n "$sn_range" ]] && curl_args+=(--data-urlencode "range=${sn_range}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 elif [[ -n "$sheet_note_set" ]]; then
   sn_id=""
   sn_name=""
@@ -1186,7 +1181,9 @@ elif [[ -n "$sheet_note_set" ]]; then
     --arg cell "$sn_cell" \
     --arg text "$stdin_text" \
     '{action: "sheet:note:set", id: $id, name: $name, cell: $cell, text: $text}')
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_note_clear" ]]; then
   sn_id=""
   sn_name=""
@@ -1203,7 +1200,9 @@ elif [[ -n "$sheet_note_clear" ]]; then
     --arg name "$sn_name" \
     --arg cell "$sn_cell" \
     '{action: "sheet:note:clear", id: $id, name: $name, cell: $cell}')
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_color" ]]; then
   sc_id=""
   sc_name=""
@@ -1234,7 +1233,9 @@ elif [[ -n "$sheet_color" ]]; then
     --arg range "$sc_target" \
     --arg color "$sc_color" \
     '{action: "sheet:color", id: $id, name: $name, range: $range, color: $color}')
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$sheet_write" ]]; then
   sw_id=""
   sw_name=""
@@ -1266,7 +1267,9 @@ elif [[ -n "$sheet_write" ]]; then
     --arg header "$sw_header" \
     '{action: "sheet:write", id: $id, name: $name, range: $range, text: $text, header: $header}')
 
-  response=$(gas_post "$json_body")
+  response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$json_body" "$BASE")
 elif [[ -n "$doc_subaction" ]]; then
   doc_id=""
   doc_name=""
@@ -1286,7 +1289,8 @@ elif [[ -n "$doc_subaction" ]]; then
   done
 
   if [[ "$doc_subaction" == "tabs" ]]; then
-    response=$(gas_get "action=doc:tabs" "id=${doc_id}")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=doc:tabs" --data-urlencode "id=${doc_id}" "$BASE")
   else
     stdin_text=""
     if [[ ! -t 0 ]]; then
@@ -1304,14 +1308,15 @@ elif [[ -n "$doc_subaction" ]]; then
       --arg parent "$doc_parent" \
       '{action: ("doc:" + $sub), id: $id, name: $name, text: $text, format: $format, tab: $tab, index: $index, parent: $parent}')
 
-    response=$(gas_post "$json_body")
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
   fi
 else
-  local_params=("action=${action}")
   for arg in "$@"; do
-    local_params+=("$arg")
+    curl_args+=(--data-urlencode "$arg")
   done
-  response=$(gas_get "${local_params[@]}")
+  response=$(curl "${curl_args[@]}" "$BASE")
 fi
 
 if echo "$response" | grep -qi '<html'; then
