@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>myg confirm</title>
+<style>
+body { font-family: sans-serif; max-width: 500px; margin: 60px auto; text-align: center }
+.card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; font-family: monospace; white-space: pre-wrap }
+.card a { color: #2563eb; text-decoration: underline; word-break: break-all }
+button { padding: 12px 32px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; margin: 8px }
+.approve { background: #10b981; color: #fff }
+.approve:hover { background: #059669 }
+.deny { background: #ef4444; color: #fff }
+.deny:hover { background: #dc2626 }
+.result { margin-top: 20px; font-size: 18px; font-weight: bold }
+.result.ok { color: #10b981 }
+.result.ng { color: #ef4444 }
+</style>
+</head>
+<body>
+<h2>Confirmation Required</h2>
+<div class="card">{{message}}</div>
+{{#action}}<p style="color:#666">Action: <code>{{action}}</code></p>{{/action}}
+<div id="buttons">
+<button class="approve" onclick="respond('approve')">Approve</button>
+<button class="deny" onclick="respond('deny')">Deny</button>
+</div>
+<div id="result"></div>
+<script>
+function respond(action) {
+  document.getElementById('buttons').style.display = 'none';
+  var r = document.getElementById('result');
+  r.innerHTML = 'Processing...';
+  fetch('/confirm/{{id}}/' + action, { method: 'POST' })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'approved') {
+        r.className = 'result ok';
+        r.innerHTML = '&#10003; Approved — returning to terminal.';
+      } else {
+        r.className = 'result ng';
+        r.innerHTML = '&#10007; Denied — operation cancelled.';
+      }
+      setTimeout(function() { window.close(); }, 1500);
+    })
+    .catch(function() {
+      r.className = 'result ng';
+      r.innerHTML = 'Error communicating with daemon.';
+    });
+}
+</script>
+</body>
+</html>

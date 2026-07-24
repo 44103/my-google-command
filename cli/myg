@@ -161,6 +161,59 @@ gas_post() {
     -d "$json_body"
 }
 
+# --- Common confirmation function ---
+# Usage: require_confirm "message" ["action_label"]
+# TTY: interactive y/N prompt
+# No TTY + daemon: browser confirmation via long-poll
+# No TTY + no daemon: error
+require_confirm() {
+  local msg="$1"
+  local action_label="${2:-}"
+  # TTY available: use interactive prompt
+  if [[ -t 0 ]]; then
+    echo "$msg"
+    printf "Proceed? [y/N]: "
+    read -r confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "Cancelled." >&2; exit 0
+    fi
+    return
+  fi
+  # No TTY: use daemon browser confirmation
+  if ! daemon_is_running; then
+    daemon_start 2>/dev/null || true
+  fi
+  if daemon_is_running; then
+    local _confirm_resp _confirm_id _confirm_url _confirm_result
+    _confirm_resp=$(curl -s -X POST "${DAEMON_URL}/confirm/request" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg message "$msg" --arg action "$action_label" '{message: $message, action: $action}')")
+    _confirm_id=$(echo "$_confirm_resp" | jq -r '.id // empty')
+    _confirm_url=$(echo "$_confirm_resp" | jq -r '.url // empty')
+    if [[ -z "$_confirm_id" ]]; then
+      echo "Error: Failed to create confirmation request." >&2; exit 1
+    fi
+    echo "$msg" >&2
+    echo "" >&2
+    echo "Approve in browser: $_confirm_url" >&2
+    open_browser "$_confirm_url" 2>/dev/null || true
+    echo "Waiting for confirmation (60s timeout)..." >&2
+    _confirm_result=$(curl -s --max-time 65 "${DAEMON_URL}/confirm/${_confirm_id}/wait" | jq -r '.status // "timeout"')
+    if [[ "$_confirm_result" == "approved" ]]; then
+      echo "Approved." >&2
+      return
+    elif [[ "$_confirm_result" == "denied" ]]; then
+      echo "Denied." >&2; exit 0
+    else
+      echo "Timed out waiting for confirmation." >&2; exit 1
+    fi
+  else
+    echo "Error: This operation requires interactive terminal or running daemon." >&2
+    echo "Start daemon with: myg daemon start" >&2
+    exit 1
+  fi
+}
+
 show_help() {
   cat "$SCRIPT_DIR/help.txt"
   exit 0
@@ -382,15 +435,7 @@ if [[ "$action" == "acl" ]]; then
         if [[ -z "$acl_value" ]]; then
           echo "Usage: myg acl command remove \"<command>\"" >&2; exit 1
         fi
-        if [[ ! -t 0 ]]; then
-          echo "Error: ACL change (remove) requires interactive terminal" >&2; exit 1
-        fi
-        echo "This will remove '$acl_value' from the restriction list."
-        printf "Proceed? [y/N]: "
-        read -r confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-          echo "Cancelled." >&2; exit 0
-        fi
+        require_confirm "This will remove '$acl_value' from the restriction list." "myg acl command remove"
         new=$(jq --arg v "$acl_value" '
           if .deny then .deny = (.deny | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
           if .allow then .allow = (.allow | map(select(. != $v)) | if length == 0 then empty else . end) else . end |
@@ -401,15 +446,7 @@ if [[ "$action" == "acl" ]]; then
         echo "Removed: $acl_value" >&2
         ;;
       reset)
-        if [[ ! -t 0 ]]; then
-          echo "Error: ACL change (reset) requires interactive terminal" >&2; exit 1
-        fi
-        echo "WARNING: This will clear ALL permission restrictions."
-        printf "Proceed? [y/N]: "
-        read -r confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-          echo "Cancelled." >&2; exit 0
-        fi
+        require_confirm "WARNING: This will clear ALL permission restrictions." "myg acl command reset"
         perm_write '{}'
         echo "All restrictions cleared." >&2
         ;;
@@ -452,15 +489,9 @@ if [[ "$action" == "acl" ]]; then
 
     acl_file_confirm() {
       local msg="$1"
-      if [[ ! -t 0 ]]; then
-        echo "Error: ACL change requires interactive terminal (stdin must be a TTY)" >&2; exit 1
-      fi
-      echo "$msg"
-      printf "Proceed? [y/N]: "
-      read -r confirm
-      if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        echo "Cancelled." >&2; exit 0
-      fi
+      local file_url="https://drive.google.com/file/d/${acl_file_id}/view"
+      require_confirm "${msg}
+File: ${file_url}" "myg acl file id=${acl_file_id}"
     }
 
     acl_file_format_set_response() {
