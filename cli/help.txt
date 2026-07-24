@@ -126,6 +126,9 @@ Actions:
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
   gas file script=<SCRIPT_ID or URL> name=<FILENAME>  Get source code
+  daemon start                    Start the local daemon
+  daemon stop                     Stop the local daemon
+  daemon status                   Show daemon status
 
 Examples:
   myg auth

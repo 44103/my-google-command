@@ -54,11 +54,31 @@ myg auth
 ```
 
 ブラウザが開きます。初回は Google の承認ダイアログが表示されるので、すべて許可してください。
-トークンが表示されたら「Copy Token」ボタンでコピーし、ターミナルに戻ってペーストしてください。
+
+Node.js 18+ がインストールされている場合、ローカル daemon が自動的に起動し、ブラウザからトークンが自動送信されます（コピペ不要）。
+
+Node.js がない場合や daemon の起動に失敗した場合は、従来どおりトークンをコピペする方式にフォールバックします。
 
 > トークンは約 1 時間で期限切れになります。切れたら再度 `myg auth` を実行してください。
 
 > `myg auth` 実行時に自動で `git pull` が行われます。更新があった場合はコミットログが表示されます。
+
+#### Daemon 管理
+
+```bash
+# daemon の起動（通常は myg auth 時に自動起動）
+myg daemon start
+
+# daemon の状態確認
+myg daemon status
+
+# daemon の停止
+myg daemon stop
+```
+
+Daemon は `127.0.0.1:19333` で動作します。ポートを変更する場合は環境変数 `MYG_DAEMON_PORT` を設定してください。
+
+起動に失敗した場合、`/tmp/myg-daemon.log`（Windows: `%TEMP%\myg-daemon.log`）にエラーログが記録されます。
 
 #### 非対話環境 (IDE・TUI) での認証
 

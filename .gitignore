@@ -8,5 +8,6 @@ yarn-error.log
 *.log
 .env
 .token
+.daemon-pid
 .permission.json
 *.code-workspace
