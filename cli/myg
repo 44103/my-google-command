@@ -25,6 +25,142 @@ fi
 TOKEN_FILE="$SCRIPT_DIR/../.token"
 BASE="https://script.google.com/macros/s/${ACTIVE_DEPLOY_ID}/exec"
 
+# --- Daemon configuration ---
+DAEMON_SCRIPT="$SCRIPT_DIR/../daemon/index.js"
+DAEMON_PORT="${MYG_DAEMON_PORT:-19333}"
+DAEMON_HOST="127.0.0.1"
+DAEMON_URL="http://${DAEMON_HOST}:${DAEMON_PORT}"
+DAEMON_PID_FILE="$SCRIPT_DIR/../.daemon-pid"
+DAEMON_LOG="/tmp/myg-daemon.log"
+
+# --- Daemon helper functions ---
+daemon_check_node() {
+  if ! command -v node &>/dev/null; then
+    echo "Error: Node.js is required but not found in PATH." >&2
+    echo "Install Node.js 18+ from https://nodejs.org/" >&2
+    exit 1
+  fi
+  local node_major
+  node_major=$(node -v | sed 's/v//' | cut -d. -f1)
+  if [[ $node_major -lt 18 ]]; then
+    echo "Error: Node.js 18+ required (found: $(node -v))" >&2
+    echo "Install Node.js 18+ from https://nodejs.org/" >&2
+    exit 1
+  fi
+}
+
+daemon_is_running() {
+  curl -s --max-time 1 "${DAEMON_URL}/status" >/dev/null 2>&1
+}
+
+daemon_start() {
+  if daemon_is_running; then
+    return 0
+  fi
+
+  daemon_check_node
+
+  # Check port availability
+  if command -v lsof &>/dev/null; then
+    if lsof -i ":${DAEMON_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+      echo "Error: Port ${DAEMON_PORT} is already in use." >&2
+      echo "Check with: lsof -i :${DAEMON_PORT}" >&2
+      exit 1
+    fi
+  fi
+
+  # Clear previous log
+  : > "$DAEMON_LOG" 2>/dev/null || true
+
+  # Start daemon with stderr to /dev/null (daemon writes its own log file)
+  nohup node "$DAEMON_SCRIPT" >/dev/null 2>&1 &
+  local daemon_pid=$!
+
+  # Wait for daemon to become ready (exponential backoff, max ~5s)
+  local wait_ms=100
+  local total_ms=0
+  local max_ms=5000
+  while [[ $total_ms -lt $max_ms ]]; do
+    sleep "$(echo "scale=3; $wait_ms/1000" | bc)"
+    total_ms=$((total_ms + wait_ms))
+    if daemon_is_running; then
+      return 0
+    fi
+    # Check if process died
+    if ! kill -0 "$daemon_pid" 2>/dev/null; then
+      echo "Error: Failed to start myg daemon." >&2
+      echo "" >&2
+      if [[ -f "$DAEMON_LOG" && -s "$DAEMON_LOG" ]]; then
+        echo "--- Daemon log ---" >&2
+        cat "$DAEMON_LOG" >&2
+        echo "--- End log ---" >&2
+      else
+        echo "No log output available. Check that Node.js is working correctly." >&2
+      fi
+      exit 1
+    fi
+    # Exponential backoff: 100, 200, 400, 800, 1000 (cap at 1s)
+    wait_ms=$((wait_ms * 2))
+    [[ $wait_ms -gt 1000 ]] && wait_ms=1000
+  done
+
+  # Timeout reached
+  echo "Error: Daemon did not respond within ${max_ms}ms." >&2
+  if [[ -f "$DAEMON_LOG" && -s "$DAEMON_LOG" ]]; then
+    echo "" >&2
+    echo "--- Daemon log ---" >&2
+    cat "$DAEMON_LOG" >&2
+    echo "--- End log ---" >&2
+  fi
+  exit 1
+}
+
+daemon_stop() {
+  if daemon_is_running; then
+    curl -s --max-time 3 -X POST "${DAEMON_URL}/shutdown" >/dev/null 2>&1 || true
+    sleep 0.5
+  fi
+  # Fallback: kill by PID file
+  if [[ -f "$DAEMON_PID_FILE" ]]; then
+    local pid
+    pid=$(cat "$DAEMON_PID_FILE" 2>/dev/null)
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+    fi
+    rm -f "$DAEMON_PID_FILE"
+  fi
+}
+
+daemon_status() {
+  if daemon_is_running; then
+    curl -s "${DAEMON_URL}/status" | jq .
+  else
+    echo "Daemon is not running." >&2
+    exit 1
+  fi
+}
+
+# Send request to GAS via daemon proxy (for future use)
+gas_get() {
+  local params="$1"
+  local json_body
+  json_body=$(jq -n --arg url "$BASE" --argjson params "$params" \
+    '{gasUrl: $url, method: "GET", params: $params}')
+  curl -s -X POST "${DAEMON_URL}/proxy" \
+    -H "Content-Type: application/json" \
+    -d "$json_body"
+}
+
+gas_post() {
+  local post_body="$1"
+  local json_body
+  json_body=$(jq -n --arg url "$BASE" --argjson body "$post_body" \
+    '{gasUrl: $url, method: "POST", postBody: $body}')
+  curl -s -X POST "${DAEMON_URL}/proxy" \
+    -H "Content-Type: application/json" \
+    -d "$json_body"
+}
+
 show_help() {
   cat "$SCRIPT_DIR/help.txt"
   exit 0
@@ -51,6 +187,22 @@ if [[ "$action" == "--help" || "$action" == "-h" || "$action" == "help" ]]; then
   show_help
 fi
 
+# --- daemon subcommand ---
+if [[ "$action" == "daemon" ]]; then
+  daemon_verb="${1:-status}"
+  shift 2>/dev/null || true
+  case "$daemon_verb" in
+    start)  daemon_start; echo "Daemon is running." >&2 ;;
+    stop)   daemon_stop; echo "Daemon stopped." >&2 ;;
+    status) daemon_status ;;
+    *)
+      echo "Usage: myg daemon [start|stop|status]" >&2
+      exit 1
+      ;;
+  esac
+  exit 0
+fi
+
 if [[ "$action" == "auth" ]]; then
   # Auto-update check
   repo_dir="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -67,13 +219,56 @@ if [[ "$action" == "auth" ]]; then
     fi
   fi
 
-  echo "Opening browser for authentication..." >&2
+  # Try daemon-based auth (no copy-paste needed)
+  _daemon_auth=false
+  if daemon_is_running || (daemon_check_node 2>/dev/null && daemon_start 2>/dev/null); then
+    _daemon_auth=true
+  fi
+
+  if [[ "$_daemon_auth" == "true" ]]; then
+    # Daemon auth: browser sends token directly to daemon callback
+    _callback_raw="http://${DAEMON_HOST}:${DAEMON_PORT}/auth/callback"
+    _callback_b64=$(echo -n "$_callback_raw" | base64 | tr -d '\n')
+    if [[ -n "${GW_DOMAIN:-}" ]]; then
+      auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&callback=${_callback_b64}"
+    else
+      auth_url="${BASE}?action=auth&callback=${_callback_b64}"
+    fi
+    echo "Opening browser for authentication..." >&2
+    open_browser "$auth_url"
+
+    echo "Waiting for authentication in browser..." >&2
+    _timeout=15
+    _elapsed=0
+    while [[ $_elapsed -lt $_timeout ]]; do
+      sleep 1
+      _elapsed=$((_elapsed + 1))
+      _has_token=$(curl -s "${DAEMON_URL}/status" | jq -r '.hasToken' 2>/dev/null)
+      if [[ "$_has_token" == "true" ]]; then
+        # Save token to file for fallback use
+        _token_val=$(curl -s "${DAEMON_URL}/token" 2>/dev/null)
+        if [[ -n "$_token_val" && "$_token_val" != "null" ]]; then
+          echo "$_token_val" > "$TOKEN_FILE"
+        fi
+        echo "Authentication complete." >&2
+        exit 0
+      fi
+    done
+    echo "" >&2
+    echo "Timed out. Falling back to manual token entry..." >&2
+  fi
+
+  # Fallback: traditional copy-paste auth
   if [[ -n "${GW_DOMAIN:-}" ]]; then
     auth_url="https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
   else
     auth_url="${BASE}?action=auth"
   fi
-  open_browser "$auth_url"
+
+  if [[ "$_daemon_auth" == "false" ]]; then
+    echo "Opening browser for authentication..." >&2
+    open_browser "$auth_url"
+  fi
 
   if [[ ! -t 0 ]]; then
     echo "" >&2
@@ -107,6 +302,12 @@ fi
 if [[ "$action" == "token" ]]; then
   if [[ $# -gt 0 && -n "$1" ]]; then
     echo "$1" > "$TOKEN_FILE"
+    # Also send to daemon if running
+    if daemon_is_running; then
+      curl -s -X POST "${DAEMON_URL}/auth/callback" \
+        -H "Content-Type: application/json" \
+        -d "{\"token\":\"$1\"}" >/dev/null 2>&1 || true
+    fi
     echo "Token saved." >&2
   else
     if [[ -n "${GW_DOMAIN:-}" ]]; then
@@ -238,6 +439,7 @@ if [[ "$action" == "acl" ]]; then
 
     acl_file_set_props() {
       local value="$1"
+      local json_body
       json_body=$(jq -n --arg action "file:props:set" --arg id "$acl_file_id" --arg value "$value" \
         '{action: $action, id: $id, value: $value}')
       curl -s -L -H "Authorization: Bearer ${_tk}" \
@@ -364,6 +566,7 @@ if [[ "$action" == "acl" ]]; then
   exit 0
 fi
 
+# --- Token loading (traditional .token file) ---
 if [[ -f "$TOKEN_FILE" ]]; then
   ACCESS_TOKEN=$(cat "$TOKEN_FILE")
 else

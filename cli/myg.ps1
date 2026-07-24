@@ -22,6 +22,100 @@ if (-not (Get-Variable -Name DEV_DEPLOY_ID -Scope Script -ErrorAction SilentlyCo
 
 $Base = "https://script.google.com/macros/s/$DEPLOY_ID/exec"
 
+# --- Daemon configuration ---
+$DaemonScript = Join-Path $ProjectDir "daemon\index.js"
+$DaemonPort = if ($env:MYG_DAEMON_PORT) { $env:MYG_DAEMON_PORT } else { "19333" }
+$DaemonHost = "127.0.0.1"
+$DaemonUrl = "http://${DaemonHost}:${DaemonPort}"
+$DaemonPidFile = Join-Path $ProjectDir ".daemon-pid"
+$DaemonLog = Join-Path $env:TEMP "myg-daemon.log"
+
+function Daemon-CheckNode {
+    $nodePath = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodePath) {
+        Write-Error "Node.js is required but not found in PATH.`nInstall Node.js 18+ from https://nodejs.org/"
+        exit 1
+    }
+    $ver = (node -v) -replace '^v', ''
+    $major = [int]($ver.Split('.')[0])
+    if ($major -lt 18) {
+        Write-Error "Node.js 18+ required (found: v$ver)`nInstall Node.js 18+ from https://nodejs.org/"
+        exit 1
+    }
+}
+
+function Daemon-IsRunning {
+    try {
+        $resp = Invoke-RestMethod -Uri "$DaemonUrl/status" -TimeoutSec 1 -ErrorAction Stop
+        return $true
+    } catch { return $false }
+}
+
+function Daemon-Start {
+    if (Daemon-IsRunning) { return }
+    Daemon-CheckNode
+
+    # Check port
+    $listener = Get-NetTCPConnection -LocalPort $DaemonPort -State Listen -ErrorAction SilentlyContinue
+    if ($listener) {
+        Write-Error "Port $DaemonPort is already in use."
+        exit 1
+    }
+
+    # Clear log
+    if (Test-Path $DaemonLog) { "" | Set-Content $DaemonLog }
+
+    # Start daemon
+    $proc = Start-Process -FilePath "node" -ArgumentList $DaemonScript `
+        -RedirectStandardError $DaemonLog -WindowStyle Hidden -PassThru
+
+    # Wait with exponential backoff (max ~5s)
+    $waitMs = 100; $totalMs = 0; $maxMs = 5000
+    while ($totalMs -lt $maxMs) {
+        Start-Sleep -Milliseconds $waitMs
+        $totalMs += $waitMs
+        if (Daemon-IsRunning) { return }
+        if ($proc.HasExited) {
+            Write-Host "Error: Failed to start myg daemon." -ForegroundColor Red
+            if ((Test-Path $DaemonLog) -and (Get-Item $DaemonLog).Length -gt 0) {
+                Write-Host "--- Daemon log ---" -ForegroundColor Yellow
+                Get-Content $DaemonLog | Write-Host
+                Write-Host "--- End log ---" -ForegroundColor Yellow
+            }
+            exit 1
+        }
+        $waitMs = [Math]::Min($waitMs * 2, 1000)
+    }
+    Write-Error "Daemon did not respond within ${maxMs}ms."
+    if ((Test-Path $DaemonLog) -and (Get-Item $DaemonLog).Length -gt 0) {
+        Write-Host "--- Daemon log ---" -ForegroundColor Yellow
+        Get-Content $DaemonLog | Write-Host
+        Write-Host "--- End log ---" -ForegroundColor Yellow
+    }
+    exit 1
+}
+
+function Daemon-Stop {
+    if (Daemon-IsRunning) {
+        try { Invoke-RestMethod -Uri "$DaemonUrl/shutdown" -Method Post -TimeoutSec 3 -ErrorAction SilentlyContinue } catch {}
+        Start-Sleep -Milliseconds 500
+    }
+    if (Test-Path $DaemonPidFile) {
+        $pid = Get-Content $DaemonPidFile -ErrorAction SilentlyContinue
+        if ($pid) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }
+        Remove-Item $DaemonPidFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Daemon-Status {
+    if (Daemon-IsRunning) {
+        Invoke-RestMethod -Uri "$DaemonUrl/status" | ConvertTo-Json -Depth 10
+    } else {
+        Write-Error "Daemon is not running."
+        exit 1
+    }
+}
+
 function Show-Help {
     Get-Content (Join-Path $PSScriptRoot "help.txt")
     exit 0
@@ -137,6 +231,18 @@ $remaining = @(if ($args.Count -gt 1) { $args[1..($args.Count - 1)] })
 
 if ($action -in "--help", "-h", "help") { Show-Help }
 
+# --- daemon subcommand ---
+if ($action -eq "daemon") {
+    $daemonVerb = if ($remaining.Count -gt 0) { $remaining[0] } else { "status" }
+    switch ($daemonVerb) {
+        "start"  { Daemon-Start; Write-Host "Daemon is running." -ForegroundColor Green }
+        "stop"   { Daemon-Stop; Write-Host "Daemon stopped." -ForegroundColor Green }
+        "status" { Daemon-Status }
+        default  { Write-Error "Usage: myg daemon [start|stop|status]"; exit 1 }
+    }
+    exit 0
+}
+
 # Auth
 if ($action -eq "auth") {
     # Auto-update check
@@ -153,13 +259,58 @@ if ($action -eq "auth") {
         }
     } catch {}
 
+    # Try daemon-based auth (no copy-paste needed)
+    $_daemonAuth = $false
+    try {
+        if (Daemon-IsRunning) { $_daemonAuth = $true }
+        elseif (Get-Command node -ErrorAction SilentlyContinue) {
+            Daemon-Start
+            if (Daemon-IsRunning) { $_daemonAuth = $true }
+        }
+    } catch {}
+
+    if ($_daemonAuth) {
+        $_callbackRaw = "http://${DaemonHost}:${DaemonPort}/auth/callback"
+        $_callbackB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($_callbackRaw))
+        $authUrl = if ($GW_DOMAIN) {
+            "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth&callback=$_callbackB64"
+        } else {
+            "$Base`?action=auth&callback=$_callbackB64"
+        }
+        Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
+        Start-Process $authUrl
+
+        Write-Host "Waiting for authentication in browser..." -ForegroundColor Cyan
+        $elapsed = 0
+        while ($elapsed -lt 15) {
+            Start-Sleep -Seconds 1
+            $elapsed++
+            try {
+                $status = Invoke-RestMethod -Uri "$DaemonUrl/status" -TimeoutSec 1
+                if ($status.hasToken) {
+                    # Save token to file for fallback
+                    try {
+                        $tokenVal = Invoke-RestMethod -Uri "$DaemonUrl/token" -TimeoutSec 1
+                        if ($tokenVal) { Set-Content -Path $TokenFile -Value $tokenVal -NoNewline }
+                    } catch {}
+                    Write-Host "Authentication complete." -ForegroundColor Green
+                    exit 0
+                }
+            } catch {}
+        }
+        Write-Host "Timed out. Falling back to manual token entry..." -ForegroundColor Yellow
+    }
+
+    # Fallback: traditional copy-paste auth
     $authUrl = if ($GW_DOMAIN) {
         "https://script.google.com/a/macros/$GW_DOMAIN/s/$DEPLOY_ID/exec?action=auth"
     } else {
         "$Base`?action=auth"
     }
-    Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
-    Start-Process $authUrl
+    if (-not $_daemonAuth) {
+        Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
+        Start-Process $authUrl
+    }
     $token = Read-Host "Paste token"
     Set-Content -Path $TokenFile -Value $token -NoNewline
     Write-Host "Token saved." -ForegroundColor Green
@@ -169,6 +320,14 @@ if ($action -eq "auth") {
 if ($action -eq "token") {
     if ($remaining.Count -gt 0 -and $remaining[0] -ne "") {
         Set-Content -Path $TokenFile -Value $remaining[0] -NoNewline
+        # Also send to daemon if running
+        if (Daemon-IsRunning) {
+            try {
+                Invoke-RestMethod -Uri "$DaemonUrl/auth/callback" -Method Post `
+                    -ContentType "application/json" `
+                    -Body "{`"token`":`"$($remaining[0])`"}" -ErrorAction SilentlyContinue
+            } catch {}
+        }
         Write-Host "Token saved." -ForegroundColor Green
     } else {
         if ($GW_DOMAIN) {

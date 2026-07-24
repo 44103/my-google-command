@@ -12,6 +12,14 @@ function doGet(
     if (action === "auth") {
       const tmpl = HtmlService.createTemplateFromFile("auth");
       tmpl.token = ScriptApp.getOAuthToken();
+      // callback may be base64-encoded to avoid GAS URL parameter restrictions
+      const rawCallback = e.parameter.callback || "";
+      try {
+        tmpl.callback = rawCallback ? Utilities.newBlob(Utilities.base64Decode(rawCallback)).getDataAsString() : "";
+      } catch (_e) {
+        // If not base64, use as-is (backwards compatibility)
+        tmpl.callback = rawCallback;
+      }
       return tmpl.evaluate().setTitle("GAS Auth");
     }
 
