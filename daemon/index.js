@@ -26,9 +26,32 @@ const LOG_FILE = process.env.MYG_DAEMON_LOG || path.join(
 const HOST = "127.0.0.1";
 const MAX_REDIRECTS = 10;
 
+// --- Page templates ---
+const PAGES_DIR = path.join(__dirname, "pages");
+
+function loadPage(name) {
+  return fs.readFileSync(path.join(PAGES_DIR, name), "utf-8");
+}
+
+function renderPage(name, vars) {
+  let html = loadPage(name);
+  // Simple template: {{var}}, {{#var}}...{{/var}} (conditional block)
+  for (const [key, value] of Object.entries(vars)) {
+    // Conditional blocks
+    const blockRe = new RegExp(`\\{\\{#${key}\\}\\}([\\s\\S]*?)\\{\\{/${key}\\}\\}`, "g");
+    html = value ? html.replace(blockRe, "$1") : html.replace(blockRe, "");
+    // Variable substitution
+    html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value || "");
+  }
+  // Remove unresolved conditional blocks
+  html = html.replace(/\{\{#\w+\}\}[\s\S]*?\{\{\/\w+\}\}/g, "");
+  return html;
+}
+
 // --- State ---
 let accessToken = null;
 let tokenReceivedAt = null;
+const pendingConfirms = new Map();
 
 // --- Helpers ---
 function log(msg) {
@@ -133,12 +156,7 @@ async function handleRequest(req, res) {
     }
     // Return a simple HTML success page
     res.writeHead(200, { "Content-Type": "text/html" });
-    res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>myg auth</title></head>
-<body style="font-family:sans-serif;max-width:400px;margin:60px auto;text-align:center">
-<h2>&#10003; Authentication Complete</h2>
-<p>You can close this tab and return to the terminal.</p>
-<script>window.close()</script>
-</body></html>`);
+    res.end(renderPage("auth-success.html", {}));
     return;
   }
 
@@ -222,6 +240,125 @@ async function handleRequest(req, res) {
       log(`Proxy error: ${err.message}`);
       jsonResponse(res, 502, { error: `Proxy error: ${err.message}` });
     }
+    return;
+  }
+
+  // --- Confirmation flow ---
+  const confirmMatch = url.pathname.match(/^\/confirm\/([^/]+)(?:\/(.+))?$/);
+  if (confirmMatch) {
+    const confirmId = confirmMatch[1];
+    const subpath = confirmMatch[2] || "";
+
+    // POST /confirm/request — create a new confirmation prompt
+    if (url.pathname === "/confirm/request" && req.method === "POST") {
+      const body = await readBody(req);
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch {
+        jsonResponse(res, 400, { error: "Invalid JSON body" });
+        return;
+      }
+      const { message, action } = payload;
+      const id = Math.random().toString(36).slice(2, 10);
+      pendingConfirms.set(id, {
+        message: message || "Are you sure?",
+        action: action || "",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        waiters: [],
+      });
+      log(`Confirm request created: ${id} - ${message || action}`);
+      jsonResponse(res, 200, {
+        id,
+        url: `http://${HOST}:${PORT}/confirm/${id}/page`,
+      });
+      return;
+    }
+
+    const entry = pendingConfirms.get(confirmId);
+    if (!entry) {
+      jsonResponse(res, 404, { error: "Confirmation not found or expired" });
+      return;
+    }
+
+    // GET /confirm/:id — check status
+    if (!subpath && req.method === "GET") {
+      jsonResponse(res, 200, {
+        id: confirmId,
+        status: entry.status,
+        message: entry.message,
+        action: entry.action,
+        createdAt: entry.createdAt,
+      });
+      return;
+    }
+
+    // GET /confirm/:id/wait — long-poll until resolved or timeout
+    if (subpath === "wait" && req.method === "GET") {
+      if (entry.status !== "pending") {
+        jsonResponse(res, 200, { id: confirmId, status: entry.status });
+        return;
+      }
+      // Hold connection open until resolved
+      const timeout = setTimeout(() => {
+        entry.waiters = entry.waiters.filter((w) => w !== resolve);
+        jsonResponse(res, 408, { id: confirmId, status: "timeout" });
+      }, 60000);
+
+      const resolve = (status) => {
+        clearTimeout(timeout);
+        jsonResponse(res, 200, { id: confirmId, status });
+      };
+      entry.waiters.push(resolve);
+      return;
+    }
+
+    // GET /confirm/:id/page — browser confirmation page
+    if (subpath === "page" && req.method === "GET") {
+      if (entry.status !== "pending") {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(renderPage("confirm-resolved.html", {
+          status: entry.status === "approved" ? "Approved" : "Denied",
+        }));
+        return;
+      }
+      const escapedMessage = entry.message.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+      const escapedAction = entry.action ? entry.action.replace(/</g, "&lt;") : "";
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(renderPage("confirm.html", {
+        message: escapedMessage,
+        action: escapedAction,
+        id: confirmId,
+      }));
+      return;
+    }
+
+    // POST /confirm/:id/approve
+    if (subpath === "approve" && req.method === "POST") {
+      entry.status = "approved";
+      log(`Confirm ${confirmId}: approved`);
+      for (const waiter of entry.waiters) waiter("approved");
+      entry.waiters = [];
+      // Auto-cleanup after 60s
+      setTimeout(() => pendingConfirms.delete(confirmId), 60000);
+      jsonResponse(res, 200, { id: confirmId, status: "approved" });
+      return;
+    }
+
+    // POST /confirm/:id/deny
+    if (subpath === "deny" && req.method === "POST") {
+      entry.status = "denied";
+      log(`Confirm ${confirmId}: denied`);
+      for (const waiter of entry.waiters) waiter("denied");
+      entry.waiters = [];
+      setTimeout(() => pendingConfirms.delete(confirmId), 60000);
+      jsonResponse(res, 200, { id: confirmId, status: "denied" });
+      return;
+    }
+
+    jsonResponse(res, 404, { error: "Not found" });
     return;
   }
 
