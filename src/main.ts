@@ -12,6 +12,7 @@ function doGet(
     if (action === "auth") {
       const tmpl = HtmlService.createTemplateFromFile("auth");
       tmpl.token = ScriptApp.getOAuthToken();
+      tmpl.feedbackUrl = FEEDBACK_URL || "";
       // callback may be base64-encoded to avoid GAS URL parameter restrictions
       const rawCallback = e.parameter.callback || "";
       try {
@@ -25,6 +26,9 @@ function doGet(
 
     let result: unknown;
     switch (action) {
+      case "feedback":
+        result = { url: FEEDBACK_URL || null };
+        break;
       case "whoami": {
         const about = Drive.About!.get({});
         result = { email: (about as any).user.emailAddress, name: (about as any).user.displayName };

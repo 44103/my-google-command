@@ -34,7 +34,11 @@ kbd { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-size: 12px
       body: JSON.stringify({ token: token })
     }).then(function(res) {
       if (res.ok) {
-        status.innerHTML = '<div class="card"><p class="success">&#10003; Complete</p><p>You can close this tab and return to the terminal.</p></div>';
+        var feedbackUrl = '<?= feedbackUrl ?>';
+        var feedbackHtml = feedbackUrl
+          ? '<div style="margin-top:24px;padding-top:16px;border-top:1px solid #dee2e6"><p>Have feedback or suggestions? <a href="' + feedbackUrl + '" target="_blank" rel="noopener" style="color:#2563eb">Let us know</a></p></div>'
+          : '';
+        status.innerHTML = '<div class="card"><p class="success">&#10003; Complete</p><p>You can close this tab and return to the terminal.</p>' + feedbackHtml + '</div>';
       } else {
         status.innerHTML = '<div class="card"><p class="error">Failed to send token (HTTP ' + res.status + ')</p></div>';
         manual.style.display = '';
