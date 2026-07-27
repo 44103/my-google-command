@@ -245,12 +245,20 @@ if ($action -eq "daemon") {
 
 # Feedback
 if ($action -eq "feedback") {
-    if (-not (Get-Variable -Name FEEDBACK_URL -Scope Script -ErrorAction SilentlyContinue) -or -not $FEEDBACK_URL) {
-        Write-Error "Feedback is not configured. Set FEEDBACK_URL in .env"
+    $body = @{ gasUrl = $Base; method = "GET"; params = @{ action = "feedback" } } | ConvertTo-Json -Compress
+    try {
+        $resp = Invoke-RestMethod -Uri "$DaemonUrl/proxy" -Method Post -ContentType "application/json" -Body $body -ErrorAction Stop
+    } catch {
+        Write-Error "Failed to reach daemon. Is it running?"
         exit 1
     }
-    Write-Output $FEEDBACK_URL
-    Start-Process $FEEDBACK_URL
+    $url = $resp.url
+    if (-not $url) {
+        Write-Error "Feedback is not configured."
+        exit 1
+    }
+    Write-Output $url
+    Start-Process $url
     exit 0
 }
 

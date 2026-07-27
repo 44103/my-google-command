@@ -257,12 +257,14 @@ if [[ "$action" == "daemon" ]]; then
 fi
 
 if [[ "$action" == "feedback" ]]; then
-  if [[ -z "${FEEDBACK_URL:-}" ]]; then
-    echo "Feedback is not configured. Set FEEDBACK_URL in .env" >&2
+  result=$(gas_get '{"action":"feedback"}') || { echo "Failed to reach daemon. Is it running?" >&2; exit 1; }
+  url=$(echo "$result" | jq -r '.url // empty')
+  if [[ -z "$url" ]]; then
+    echo "Feedback is not configured." >&2
     exit 1
   fi
-  echo "$FEEDBACK_URL"
-  open_browser "$FEEDBACK_URL"
+  echo "$url"
+  open_browser "$url"
   exit 0
 fi
 

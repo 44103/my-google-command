@@ -29,6 +29,8 @@ node -e "
 
 # Generate config.js with environment values
 ACL_MODE="${ACL_MODE:-whitelist}"
+FEEDBACK_URL="${FEEDBACK_URL:-}"
 cat > "$PROJECT_DIR/dist/config.js" <<EOF
 var ACL_MODE = "${ACL_MODE}";
+var FEEDBACK_URL = "${FEEDBACK_URL}";
 EOF
