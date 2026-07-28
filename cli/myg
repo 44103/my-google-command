@@ -726,7 +726,7 @@ fi
 file_subaction=""
 if [[ "$action" == "file" && $# -gt 0 ]]; then
   case "$1" in
-    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare) file_subaction="$1"; shift ;;
+    upload|move|copy|history|diff|rename|shortcut|mkdir|share|unshare|delete) file_subaction="$1"; shift ;;
   esac
 fi
 
@@ -1104,6 +1104,26 @@ elif [[ -n "$file_subaction" ]]; then
       --arg id "$fu_id" \
       --arg permission "$fu_permission" \
       '{action: "file:unshare", id: $id, permission: $permission}')
+    response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$json_body" "$BASE")
+  elif [[ "$file_subaction" == "delete" ]]; then
+    # Get file info first for confirmation message
+    file_info=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -G --data-urlencode "action=file:props" --data-urlencode "id=${fu_id}" "$BASE")
+    file_name=$(echo "$file_info" | jq -r '.name // empty')
+    file_link="https://drive.google.com/file/d/${fu_id}/view"
+    if [[ -n "$file_name" ]]; then
+      confirm_msg="This will move the file to trash:
+${file_name}
+${file_link}"
+    else
+      confirm_msg="This will move the file to trash: id=${fu_id}"
+    fi
+    require_confirm "$confirm_msg" "myg file delete"
+    json_body=$(jq -n \
+      --arg id "$fu_id" \
+      '{action: "file:delete", id: $id}')
     response=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
       -H "Content-Type: application/json" \
       -d "$json_body" "$BASE")

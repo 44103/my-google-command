@@ -158,3 +158,10 @@ function searchFiles(query: string, max = 20): { id: string; name: string; type:
   return result;
 }
 
+function deleteFile(fileId: string): { id: string; name: string; trashed: boolean } {
+  const file = DriveApp.getFileById(fileId);
+  const name = file.getName();
+  file.setTrashed(true);
+  return { id: fileId, name, trashed: true };
+}
+

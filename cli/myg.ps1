@@ -730,6 +730,32 @@ switch ($action) {
         break
     }
 
+    # --- File delete (POST with confirmation) ---
+    { $_ -eq "file" -and $subaction -eq "delete" } {
+        $fileId = Get-Val "id"
+        if (-not [Environment]::UserInteractive) {
+            Write-Error "File deletion requires interactive terminal"
+            exit 1
+        }
+        # Get file info for confirmation
+        $fileInfo = Invoke-Api -Method GET -Query @{ action = "file:props"; id = $fileId }
+        $fileName = $fileInfo.name
+        $fileLink = "https://drive.google.com/file/d/$fileId/view"
+        if ($fileName) {
+            Write-Host "This will move the file to trash:"
+            Write-Host "  $fileName"
+            Write-Host "  $fileLink"
+            Write-Host "  (id: $fileId)"
+        } else {
+            Write-Host "This will move the file to trash: id=$fileId"
+        }
+        $confirm = Read-Host "Proceed? [y/N]"
+        if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
+        $body = @{ action = "file:delete"; id = $fileId }
+        Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
     # --- File share (GET=list, POST=add) ---
     { $_ -eq "file" -and $subaction -eq "share" } {
         $role = Get-Val "role"
