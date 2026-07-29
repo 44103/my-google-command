@@ -323,8 +323,9 @@ async function handleRequest(req, res) {
         }));
         return;
       }
-      const escapedMessage = entry.message.replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+      // Escape < > first, then convert URLs to links
+      const escaped = entry.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escapedMessage = escaped.replace(/(https?:\/\/[^\s&]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
       const escapedAction = entry.action ? entry.action.replace(/</g, "&lt;") : "";
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(renderPage("confirm.html", {

@@ -278,6 +278,7 @@ myg file mkdir name="新フォルダ" folder=<FOLDER_ID>  # フォルダ作成 (
 myg file rename id=<FILE_ID> name="新しい名前"      # ファイル/フォルダ名変更
 myg file copy id=<FILE_ID>                          # 同じフォルダにコピー
 myg file copy id=<FILE_ID> folder=<FOLDER_ID> name="コピー"  # フォルダ・名前指定でコピー
+myg file delete id=<FILE_ID>                        # ファイルをゴミ箱に移動
 myg file shortcut id=<FILE_ID>                      # ショートカット作成
 myg file shortcut id=<FILE_ID> folder=<FOLDER_ID>   # フォルダ指定でショートカット作成
 myg file history id=<FILE_ID>                       # 変更履歴を取得

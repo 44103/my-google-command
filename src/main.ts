@@ -328,6 +328,9 @@ function doPost(
         result = createFolder(body.name, body.folder);
         if (result && (result as any).id) trackFileCreation((result as any).id);
         break;
+      case "file:delete":
+        result = deleteFile(body.id);
+        break;
       case "slide:create":
         result = body.format === "markdown" && body.text
           ? createSlideFromMarkdown(body.name, body.text)

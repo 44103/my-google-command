@@ -61,6 +61,7 @@ Actions:
   file rename id=<FILE_ID> name=<NEW_NAME>  Rename file/folder
   file shortcut id=<FILE_ID> [folder=<FOLDER_ID>]  Create shortcut
   file copy id=<FILE_ID> [folder=<FOLDER_ID>] [name=<NAME>]  Copy file
+  file delete id=<FILE_ID>              Move file to trash
   file mkdir name=<NAME> [folder=<FOLDER_ID>]  Create folder
   file history id=<FILE_ID> [max=<N>]  List revision history
   file diff id=<FILE_ID> rev1=<REV_ID> rev2=<REV_ID>  Diff two revisions
