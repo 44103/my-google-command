@@ -146,22 +146,18 @@ function setFileAcl(fileId: string, value: string): { id: string; name: string; 
   // Always update cache (works regardless of file permissions)
   setCachedAcl(fileId, value);
 
-  // Determine if we can actually write File Properties by checking edit access
+  // Try to write to File Properties directly; fall back to cache if it fails
   let storage: "file" | "cache" = "cache";
   try {
-    const user = Session.getEffectiveUser();
-    const access = file.getAccess(user);
-    const canEdit = (access === DriveApp.Permission.EDIT || access === DriveApp.Permission.OWNER);
-    if (canEdit) {
-      setPrivateProperty(fileId, "acl", value);
-      const { local, domain } = getCurrentEmail();
-      setPrivateProperty(fileId, "permitted_local", local);
-      setPrivateProperty(fileId, "permitted_domain", domain);
-      setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
-      storage = "file";
-    }
+    // Attempt to write File Properties - this will fail for read-only files
+    setPrivateProperty(fileId, "acl", value);
+    const { local, domain } = getCurrentEmail();
+    setPrivateProperty(fileId, "permitted_local", local);
+    setPrivateProperty(fileId, "permitted_domain", domain);
+    setPrivateProperty(fileId, "permitted_at", new Date().toISOString());
+    storage = "file";
   } catch (_e) {
-    // Read-only file: ACL is enforced via cache only
+    // File Properties write failed (likely read-only file) - ACL is enforced via cache only
   }
 
   return { id: fileId, name: file.getName(), acl: value, storage };
