@@ -6,6 +6,24 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 
 source "$PROJECT_DIR/.env" 2>/dev/null || true
 
+# Generate src/config.generated.ts from config.yaml (optional)
+CONFIG_YAML="$PROJECT_DIR/config.yaml"
+node -e "
+  const fs = require('fs');
+  const yaml = require('js-yaml');
+  let cfg = {};
+  if (fs.existsSync('$CONFIG_YAML')) {
+    cfg = yaml.load(fs.readFileSync('$CONFIG_YAML', 'utf8')) || {};
+  }
+  // Apply defaults
+  const config = {
+    aclMode: cfg.aclMode || 'blacklist',
+    feedbackUrl: cfg.feedbackUrl || '',
+  };
+  const ts = 'const config = ' + JSON.stringify(config, null, 2) + ' as const;\\n';
+  fs.writeFileSync('$PROJECT_DIR/src/config.generated.ts', ts);
+"
+
 rm -rf "$PROJECT_DIR/dist"
 npx tsc --project "$PROJECT_DIR"
 
@@ -26,11 +44,3 @@ node -e "
   f.webapp.access = process.env.GW_ACCESS || 'DOMAIN';
   require('fs').writeFileSync('$PROJECT_DIR/dist/appsscript.json', JSON.stringify(f, null, 2));
 "
-
-# Generate config.js with environment values
-ACL_MODE="${ACL_MODE:-whitelist}"
-FEEDBACK_URL="${FEEDBACK_URL:-}"
-cat > "$PROJECT_DIR/dist/config.js" <<EOF
-var ACL_MODE = "${ACL_MODE}";
-var FEEDBACK_URL = "${FEEDBACK_URL}";
-EOF

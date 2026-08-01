@@ -11,3 +11,5 @@ yarn-error.log
 .daemon-pid
 .permission.json
 *.code-workspace
+config.yaml
+src/config.generated.ts

@@ -1,3 +1,5 @@
+// config is a global variable defined in config.generated.ts
+
 // --- Cache helpers for read-only file fallback ---
 const ACL_CACHE_PREFIX = "acl:";
 const ACL_CACHE_TTL = 600; // 10 minutes
@@ -10,11 +12,6 @@ function getCachedAcl(fileId: string): string | null {
 function setCachedAcl(fileId: string, value: string): void {
   const cache = CacheService.getUserCache();
   cache.put(ACL_CACHE_PREFIX + fileId, value, ACL_CACHE_TTL);
-}
-
-function removeCachedAcl(fileId: string): void {
-  const cache = CacheService.getUserCache();
-  cache.remove(ACL_CACHE_PREFIX + fileId);
 }
 
 // --- Core helpers ---
@@ -82,7 +79,7 @@ function resolvePermission(acl: string | null, required: "r" | "w"): { result: "
   if (acl === "-") return { result: "deny", reason: "blocked" };
   if (acl === "w") return { result: "allow", reason: null };
   if (acl === "r") return required === "r" ? { result: "allow", reason: null } : { result: "deny", reason: "readonly" };
-  return ACL_MODE === "blacklist" ? { result: "allow", reason: null } : { result: "deny", reason: "not_set" };
+  return config.aclMode === "blacklist" ? { result: "allow", reason: null } : { result: "deny", reason: "not_set" };
 }
 
 function checkAcl(fileId: string, mode: "r" | "w"): void {
@@ -164,7 +161,7 @@ function setFileAcl(fileId: string, value: string): { id: string; name: string; 
 }
 
 function trackFileAccess(fileId: string): void {
-  if (ACL_MODE !== "blacklist") return;
+  if (config.aclMode !== "blacklist") return;
   const { value: currentAcl, accessible } = getPrivateProperty(fileId, "acl");
   if (!currentAcl) {
     if (accessible) {
