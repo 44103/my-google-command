@@ -7,6 +7,14 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 
+// --- TLS workaround for corporate proxy environments ---
+// Some environments use self-signed certificates for MITM inspection.
+// This allows fetch() to work in such environments.
+// TODO: Consider using NODE_EXTRA_CA_CERTS for a more secure solution.
+if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
+
 // --- Version check ---
 const nodeVersion = parseInt(process.versions.node.split(".")[0], 10);
 if (nodeVersion < 18) {
