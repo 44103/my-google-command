@@ -7,6 +7,7 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 source "$PROJECT_DIR/.env" 2>/dev/null || true
 
 # Generate src/config.generated.ts from config.yaml (optional)
+# GAS doesn't support ES modules, so we declare config as a global variable
 CONFIG_YAML="$PROJECT_DIR/config.yaml"
 node -e "
   const fs = require('fs');
@@ -19,6 +20,7 @@ node -e "
   const config = {
     aclMode: cfg.aclMode || 'blacklist',
     feedbackUrl: cfg.feedbackUrl || '',
+    authMessage: cfg.authMessage || '',
   };
   const ts = 'const config = ' + JSON.stringify(config, null, 2) + ' as const;\\n';
   fs.writeFileSync('$PROJECT_DIR/src/config.generated.ts', ts);

@@ -15,6 +15,7 @@ function doGet(
       const tmpl = HtmlService.createTemplateFromFile("auth");
       tmpl.token = ScriptApp.getOAuthToken();
       tmpl.feedbackUrl = config.feedbackUrl || "";
+      tmpl.authMessage = config.authMessage || "";
       // callback may be base64-encoded to avoid GAS URL parameter restrictions
       const rawCallback = e.parameter.callback || "";
       try {

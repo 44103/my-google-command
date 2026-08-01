@@ -14,3 +14,7 @@ aclMode: "blacklist"
 # Feedback form URL (optional)
 # If set, users can access via `myg feedback` command
 feedbackUrl: ""
+
+# Custom message displayed on auth page (optional)
+# Supports basic HTML tags for formatting
+authMessage: ""

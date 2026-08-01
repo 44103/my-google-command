@@ -191,6 +191,7 @@ cp config.example.yaml config.yaml
 | ------------- | -------------------------------------------- | ----------- |
 | `aclMode`     | ファイル ACL のデフォルトポリシー             | `blacklist` |
 | `feedbackUrl` | フィードバックフォームの URL                 | (空文字)    |
+| `authMessage` | 認証画面に表示するカスタムメッセージ         | (空文字)    |
 
 ### 設定例
 
@@ -198,6 +199,7 @@ cp config.example.yaml config.yaml
 # config.yaml
 aclMode: "blacklist"
 feedbackUrl: "https://example.com/feedback"
+authMessage: "<strong>注意:</strong> このトークンは社内システム専用です。"
 ```
 
 ### ACL_MODE の詳細
