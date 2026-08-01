@@ -172,6 +172,15 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // --- POST /auth/clear --- clear existing token for re-authentication
+  if (url.pathname === "/auth/clear" && req.method === "POST") {
+    accessToken = null;
+    tokenReceivedAt = null;
+    log("Token cleared for re-authentication.");
+    jsonResponse(res, 200, { ok: true });
+    return;
+  }
+
   // --- GET /token --- retrieve token (localhost only, for saving to .token file)
   if (url.pathname === "/token" && req.method === "GET") {
     if (!accessToken) {

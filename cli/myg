@@ -294,6 +294,9 @@ if [[ "$action" == "auth" ]]; then
   fi
 
   if [[ "$_daemon_auth" == "true" ]]; then
+    # Clear any existing token before starting new auth flow
+    curl -s -X POST "${DAEMON_URL}/auth/clear" >/dev/null 2>&1 || true
+
     # Daemon auth: browser sends token directly to daemon callback
     _callback_raw="http://${DAEMON_HOST}:${DAEMON_PORT}/auth/callback"
     _callback_b64=$(echo -n "$_callback_raw" | base64 | tr -d '\n')
