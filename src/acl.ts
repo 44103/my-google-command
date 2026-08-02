@@ -47,7 +47,7 @@ function setPrivateProperty(fileId: string, key: string, value: string): void {
   }
 }
 
-function getFileProps(fileId: string): { id: string; name: string; properties: Record<string, string> } {
+function getFileProps(fileId: string): { id: string; name: string; properties: Record<string, string>; aclMessage?: string } {
   const file = DriveApp.getFileById(fileId);
   const props: Record<string, string> = {};
   try {
@@ -72,7 +72,15 @@ function getFileProps(fileId: string): { id: string; name: string; properties: R
       props["_source"] = "cache";
     }
   }
-  return { id: fileId, name: file.getName(), properties: props };
+  const result: { id: string; name: string; properties: Record<string, string>; aclMessage?: string } = {
+    id: fileId,
+    name: file.getName(),
+    properties: props
+  };
+  if (config.aclMessage) {
+    result.aclMessage = config.aclMessage;
+  }
+  return result;
 }
 
 function resolvePermission(acl: string | null, required: "r" | "w"): { result: "allow" | "deny"; reason: "blocked" | "not_set" | "readonly" | null } {
@@ -133,7 +141,7 @@ function throwAclError(fileId: string, mode: "r" | "w", reason: "blocked" | "not
   throw new Error(prefix + " To allow " + desc + " access, run: myg acl file id=" + fileId + " " + level);
 }
 
-function setFileAcl(fileId: string, value: string): { id: string; name: string; acl: string; storage: "file" | "cache" } {
+function setFileAcl(fileId: string, value: string): { id: string; name: string; acl: string; storage: "file" | "cache"; aclMessage?: string } {
   const file = DriveApp.getFileById(fileId);
   const allowed = ["-", "r", "w"];
   if (!allowed.includes(value)) {
@@ -157,7 +165,16 @@ function setFileAcl(fileId: string, value: string): { id: string; name: string; 
     // File Properties write failed (likely read-only file) - ACL is enforced via cache only
   }
 
-  return { id: fileId, name: file.getName(), acl: value, storage };
+  const result: { id: string; name: string; acl: string; storage: "file" | "cache"; aclMessage?: string } = {
+    id: fileId,
+    name: file.getName(),
+    acl: value,
+    storage
+  };
+  if (config.aclMessage) {
+    result.aclMessage = config.aclMessage;
+  }
+  return result;
 }
 
 function trackFileAccess(fileId: string): void {

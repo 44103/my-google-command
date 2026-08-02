@@ -276,11 +276,12 @@ async function handleRequest(req, res) {
         jsonResponse(res, 400, { error: "Invalid JSON body" });
         return;
       }
-      const { message, action } = payload;
+      const { message, action, aclMessage } = payload;
       const id = Math.random().toString(36).slice(2, 10);
       pendingConfirms.set(id, {
         message: message || "Are you sure?",
         action: action || "",
+        aclMessage: aclMessage || "",
         status: "pending",
         createdAt: new Date().toISOString(),
         waiters: [],
@@ -344,10 +345,12 @@ async function handleRequest(req, res) {
       const escaped = entry.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const escapedMessage = escaped.replace(/(https?:\/\/[^\s&]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
       const escapedAction = entry.action ? entry.action.replace(/</g, "&lt;") : "";
+      const escapedAclMessage = entry.aclMessage ? entry.aclMessage.replace(/</g, "&lt;") : "";
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(renderPage("confirm.html", {
         message: escapedMessage,
         action: escapedAction,
+        aclMessage: escapedAclMessage,
         id: confirmId,
       }));
       return;
