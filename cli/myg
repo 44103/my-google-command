@@ -140,25 +140,68 @@ daemon_status() {
   fi
 }
 
-# Send request to GAS via daemon proxy (for future use)
+# --- GAS API call functions ---
+# Prefer daemon proxy, fallback to direct curl if daemon unavailable
+# Usage: gas_get '{"action":"xxx", "id":"yyy"}'
+# Usage: gas_post '{"action":"xxx", "data":"yyy"}'
+
 gas_get() {
   local params="$1"
-  local json_body
-  json_body=$(jq -n --arg url "$BASE" --argjson params "$params" \
-    '{gasUrl: $url, method: "GET", params: $params}')
-  curl -s -X POST "${DAEMON_URL}/proxy" \
-    -H "Content-Type: application/json" \
-    -d "$json_body"
+  # Try daemon proxy first
+  if daemon_is_running; then
+    local json_body
+    json_body=$(jq -n --arg url "$BASE" --argjson params "$params" \
+      '{gasUrl: $url, method: "GET", params: $params}')
+    local resp
+    resp=$(curl -s -X POST "${DAEMON_URL}/proxy" \
+      -H "Content-Type: application/json" \
+      -d "$json_body")
+    # Check for daemon auth error
+    if echo "$resp" | jq -e '.error == "No token. Run: myg auth"' >/dev/null 2>&1; then
+      echo "$resp"
+      return 1
+    fi
+    echo "$resp"
+    return 0
+  fi
+  # Fallback to direct curl
+  if [[ -z "${ACCESS_TOKEN:-}" ]]; then
+    echo '{"error":"No token. Run: myg auth"}'
+    return 1
+  fi
+  local url="$BASE"
+  local qs
+  qs=$(echo "$params" | jq -r 'to_entries | map("\(.key)=\(.value | @uri)") | join("&")')
+  curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G "${url}?${qs}"
 }
 
 gas_post() {
   local post_body="$1"
-  local json_body
-  json_body=$(jq -n --arg url "$BASE" --argjson body "$post_body" \
-    '{gasUrl: $url, method: "POST", postBody: $body}')
-  curl -s -X POST "${DAEMON_URL}/proxy" \
+  # Try daemon proxy first
+  if daemon_is_running; then
+    local json_body
+    json_body=$(jq -n --arg url "$BASE" --argjson body "$post_body" \
+      '{gasUrl: $url, method: "POST", postBody: $body}')
+    local resp
+    resp=$(curl -s -X POST "${DAEMON_URL}/proxy" \
+      -H "Content-Type: application/json" \
+      -d "$json_body")
+    # Check for daemon auth error
+    if echo "$resp" | jq -e '.error == "No token. Run: myg auth"' >/dev/null 2>&1; then
+      echo "$resp"
+      return 1
+    fi
+    echo "$resp"
+    return 0
+  fi
+  # Fallback to direct curl
+  if [[ -z "${ACCESS_TOKEN:-}" ]]; then
+    echo '{"error":"No token. Run: myg auth"}'
+    return 1
+  fi
+  curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "$json_body"
+    -d "$post_body" "$BASE"
 }
 
 # --- Common confirmation function ---
@@ -1660,10 +1703,17 @@ elif [[ -n "$doc_subaction" ]]; then
       -d "$json_body" "$BASE")
   fi
 else
+  # Build params JSON from action and arguments
+  params_json="{\"action\":\"${action}\""
   for arg in "$@"; do
-    curl_args+=(--data-urlencode "$arg")
+    key="${arg%%=*}"
+    val="${arg#*=}"
+    # Escape JSON special characters in value
+    val=$(echo "$val" | jq -Rs '.')
+    params_json="${params_json},\"${key}\":${val}"
   done
-  response=$(curl "${curl_args[@]}" "$BASE")
+  params_json="${params_json}}"
+  response=$(gas_get "$params_json")
 fi
 
 if echo "$response" | grep -qi '<html'; then

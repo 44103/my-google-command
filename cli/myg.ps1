@@ -185,6 +185,35 @@ function Invoke-Api {
         [hashtable]$Query = @{},
         [hashtable]$Body = $null
     )
+
+    # Try daemon proxy first
+    if (Daemon-IsRunning) {
+        try {
+            if ($Method -eq "GET") {
+                $proxyBody = @{
+                    gasUrl = $Base
+                    method = "GET"
+                    params = $Query
+                } | ConvertTo-Json -Compress
+            } else {
+                $proxyBody = @{
+                    gasUrl = $Base
+                    method = "POST"
+                    postBody = $Body
+                } | ConvertTo-Json -Depth 10 -Compress
+            }
+            $resp = Invoke-RestMethod -Uri "$DaemonUrl/proxy" -Method Post -ContentType "application/json" -Body $proxyBody -ErrorAction Stop
+            return $resp
+        } catch {
+            # If daemon returns auth error, propagate it
+            if ($_.Exception.Response.StatusCode -eq 401) {
+                throw "No token. Run: myg auth"
+            }
+            # Otherwise fall through to direct call
+        }
+    }
+
+    # Fallback to direct call
     $headers = @{ Authorization = "Bearer $script:AccessToken" }
 
     if ($Method -eq "GET") {
