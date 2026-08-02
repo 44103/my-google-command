@@ -20,6 +20,8 @@
   "devDependencies": {
     "@google/clasp": "^2.4.2",
     "@types/google-apps-script": "^1.0.83",
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^5.2.2",
     "typescript": "^5.3.3"
   }
 }

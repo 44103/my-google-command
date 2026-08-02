@@ -1,0 +1,20 @@
+# myg GAS Configuration
+#
+# Copy this file to config.yaml and customize as needed.
+# config.yaml is gitignored and will not be committed.
+#
+# All settings are optional. Omit or leave empty for defaults.
+
+# ACL mode for file access control
+# - "whitelist": Deny access by default, require explicit permission
+# - "blacklist": Allow access by default, can explicitly deny
+# Default: "blacklist"
+aclMode: "blacklist"
+
+# Feedback form URL (optional)
+# If set, users can access via `myg feedback` command
+feedbackUrl: ""
+
+# Custom message displayed on auth page (optional)
+# Supports basic HTML tags for formatting
+authMessage: ""

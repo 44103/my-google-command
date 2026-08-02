@@ -1,4 +1,6 @@
-// Run this function manually in GAS editor to trigger scope authorization
+// config is a global variable defined in config.generated.ts
+
+// GAS global functions - used by GAS runtime, not called directly in code
 function authorizeScopes() {
   UrlFetchApp.fetch("https://www.google.com");
   Drive.Revisions!.list("dummy");
@@ -12,7 +14,8 @@ function doGet(
     if (action === "auth") {
       const tmpl = HtmlService.createTemplateFromFile("auth");
       tmpl.token = ScriptApp.getOAuthToken();
-      tmpl.feedbackUrl = FEEDBACK_URL || "";
+      tmpl.feedbackUrl = config.feedbackUrl || "";
+      tmpl.authMessage = config.authMessage || "";
       // callback may be base64-encoded to avoid GAS URL parameter restrictions
       const rawCallback = e.parameter.callback || "";
       try {
@@ -27,7 +30,7 @@ function doGet(
     let result: unknown;
     switch (action) {
       case "feedback":
-        result = { url: FEEDBACK_URL || null };
+        result = { url: config.feedbackUrl || null };
         break;
       case "whoami": {
         const about = Drive.About!.get({});

@@ -168,8 +168,39 @@ yarn open  # GAS エディタを開く
 | `DEV_DEPLOY_ID` | 開発 GAS デプロイ ID                         | (任意)      |
 | `GW_ACCESS`     | Web App のアクセス範囲 (`DOMAIN` / `MYSELF`) | `DOMAIN`    |
 | `GW_DOMAIN`     | Google Workspace ドメイン                    | (未設定)    |
-| `ACL_MODE`      | ファイル ACL のデフォルトポリシー             | `whitelist` |
-| `FEEDBACK_URL`  | フィードバックフォームの URL                 | (未設定)    |
+
+---
+
+## 設定ファイル (config.yaml)
+
+GAS 側のカスタマイズ可能な設定は `config.yaml` で管理します。ビルド時に TypeScript に変換されます。
+
+### セットアップ
+
+```bash
+cp config.example.yaml config.yaml
+# 必要に応じて値を編集
+```
+
+`config.yaml` は `.gitignore` で除外されているため、デプロイ環境ごとに異なる設定が可能です。
+ファイルが存在しない場合はデフォルト値が適用されます。
+
+### 設定項目
+
+| 項目          | 説明                                         | デフォルト  |
+| ------------- | -------------------------------------------- | ----------- |
+| `aclMode`     | ファイル ACL のデフォルトポリシー             | `blacklist` |
+| `feedbackUrl` | フィードバックフォームの URL                 | (空文字)    |
+| `authMessage` | 認証画面に表示するカスタムメッセージ         | (空文字)    |
+
+### 設定例
+
+```yaml
+# config.yaml
+aclMode: "blacklist"
+feedbackUrl: "https://example.com/feedback"
+authMessage: "<strong>注意:</strong> このトークンは社内システム専用です。"
+```
 
 ### ACL_MODE の詳細
 
@@ -194,8 +225,8 @@ yarn open  # GAS エディタを開く
 #### 設定変更の反映
 
 ```bash
-# .env を編集
-ACL_MODE=blacklist
+# config.yaml を編集
+aclMode: "whitelist"
 
 # ビルド + プッシュ + デプロイで反映
 yarn apply && yarn deploy
@@ -239,6 +270,8 @@ yarn apply && yarn deploy
 │   └── install.ps1      # ユーザー向けインストーラー (Windows)
 ├── src/
 │   ├── main.ts          # doGet/doPost エントリポイント
+│   ├── acl.ts           # ACL (アクセス制御)
+│   ├── config.generated.ts  # ビルド時に生成 (.gitignore)
 │   ├── spreadsheet.ts   # Spreadsheet
 │   ├── docs.ts          # Docs
 │   ├── gmail.ts         # Gmail
@@ -251,6 +284,8 @@ yarn apply && yarn deploy
 │   ├── gas.ts           # GAS (Apps Script)
 │   ├── comments.ts      # Comments
 │   └── utils/           # 共通ユーティリティ
+├── config.example.yaml  # 設定ファイルテンプレート
+├── config.yaml          # 設定ファイル (.gitignore)
 ├── .env.example
 ├── mise.toml
 └── package.json
