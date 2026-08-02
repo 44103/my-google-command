@@ -205,16 +205,23 @@ gas_post() {
 }
 
 # --- Common confirmation function ---
-# Usage: require_confirm "message" ["action_label"]
+# Usage: require_confirm "message" ["action_label"] ["aclMessage"]
 # TTY: interactive y/N prompt
 # No TTY + daemon: browser confirmation via long-poll
 # No TTY + no daemon: error
 require_confirm() {
   local msg="$1"
   local action_label="${2:-}"
+  local acl_message="${3:-}"
   # TTY available: use interactive prompt
   if [[ -t 0 ]]; then
     echo "$msg"
+    if [[ -n "$acl_message" ]]; then
+      # Convert [text](url) to "text (url)" for terminal display
+      local display_msg
+      display_msg=$(echo "$acl_message" | sed -E 's/\[([^]]+)\]\(([^)]+)\)/\1 (\2)/g')
+      echo -e "\033[1;33m$display_msg\033[0m"
+    fi
     printf "Proceed? [y/N]: "
     read -r confirm
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
@@ -230,7 +237,7 @@ require_confirm() {
     local _confirm_resp _confirm_id _confirm_url _confirm_result
     _confirm_resp=$(curl -s -X POST "${DAEMON_URL}/confirm/request" \
       -H "Content-Type: application/json" \
-      -d "$(jq -n --arg message "$msg" --arg action "$action_label" '{message: $message, action: $action}')")
+      -d "$(jq -n --arg message "$msg" --arg action "$action_label" --arg aclMessage "$acl_message" '{message: $message, action: $action, aclMessage: $aclMessage}')")
     _confirm_id=$(echo "$_confirm_resp" | jq -r '.id // empty')
     _confirm_url=$(echo "$_confirm_resp" | jq -r '.url // empty')
     if [[ -z "$_confirm_id" ]]; then
@@ -547,9 +554,10 @@ if [[ "$action" == "acl" ]]; then
 
     acl_file_confirm() {
       local msg="$1"
+      local acl_msg="$2"
       local file_url="https://drive.google.com/file/d/${acl_file_id}/view"
       require_confirm "${msg}
-File: ${file_url}" "myg acl file id=${acl_file_id}"
+File: ${file_url}" "myg acl file id=${acl_file_id}" "$acl_msg"
     }
 
     acl_file_format_set_response() {
@@ -606,19 +614,21 @@ File: ${file_url}" "myg acl file id=${acl_file_id}"
       fi
     }
 
+    # Get file props (includes aclMessage) - shared across all verbs
+    _props=$(curl -s -L -H "Authorization: Bearer ${_tk}" \
+      -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE")
+    _err=$(echo "$_props" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
+    if [[ -n "$_err" ]]; then
+      echo "Error: $_err" >&2; exit 1
+    fi
+    _acl_message=$(echo "$_props" | jq -r '.aclMessage // empty' 2>/dev/null)
+
     case "$acl_file_verb" in
       "")
-        _resp=$(curl -s -L -H "Authorization: Bearer ${_tk}" \
-          -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE")
-        # Check for error
-        _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
-        if [[ -n "$_err" ]]; then
-          echo "Error: $_err" >&2; exit 1
-        fi
-        acl_file_format_get_response "$_resp"
+        acl_file_format_get_response "$_props"
         ;;
       deny)
-        acl_file_confirm "WARNING: This will DENY all myg access (read & write) to this file."
+        acl_file_confirm "WARNING: This will DENY all myg access (read & write) to this file." "$_acl_message"
         _resp=$(acl_file_set_props "-")
         _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
         if [[ -n "$_err" ]]; then
@@ -627,7 +637,7 @@ File: ${file_url}" "myg acl file id=${acl_file_id}"
         acl_file_format_set_response "$_resp"
         ;;
       readonly)
-        acl_file_confirm "This will set the file to READ-ONLY via myg."
+        acl_file_confirm "This will set the file to READ-ONLY via myg." "$_acl_message"
         _resp=$(acl_file_set_props "r")
         _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
         if [[ -n "$_err" ]]; then
@@ -636,7 +646,7 @@ File: ${file_url}" "myg acl file id=${acl_file_id}"
         acl_file_format_set_response "$_resp"
         ;;
       full)
-        acl_file_confirm "This will set the file to READ+WRITE via myg."
+        acl_file_confirm "This will set the file to READ+WRITE via myg." "$_acl_message"
         _resp=$(acl_file_set_props "w")
         _err=$(echo "$_resp" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
         if [[ -n "$_err" ]]; then

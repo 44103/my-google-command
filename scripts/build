@@ -21,6 +21,7 @@ node -e "
     aclMode: cfg.aclMode || 'blacklist',
     feedbackUrl: cfg.feedbackUrl || '',
     authMessage: cfg.authMessage || '',
+    aclMessage: cfg.aclMessage || '',
   };
   const ts = 'const config = ' + JSON.stringify(config, null, 2) + ' as const;\\n';
   fs.writeFileSync('$PROJECT_DIR/src/config.generated.ts', ts);

@@ -7,6 +7,8 @@
 body { font-family: sans-serif; max-width: 500px; margin: 60px auto; text-align: center }
 .card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; font-family: monospace; white-space: pre-wrap }
 .card a { color: #2563eb; text-decoration: underline; word-break: break-all }
+.notice { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0; text-align: left; font-size: 14px }
+.notice a { color: #d97706 }
 button { padding: 12px 32px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; margin: 8px }
 .approve { background: #10b981; color: #fff }
 .approve:hover { background: #059669 }
@@ -20,6 +22,7 @@ button { padding: 12px 32px; font-size: 16px; border: none; border-radius: 6px; 
 <body>
 <h2>Confirmation Required</h2>
 <div class="card">{{message}}</div>
+{{#aclMessage}}<div class="notice" id="aclMessage"></div>{{/aclMessage}}
 {{#action}}<p style="color:#666">Action: <code>{{action}}</code></p>{{/action}}
 <div id="buttons">
 <button class="approve" onclick="respond('approve')">Approve</button>
@@ -27,6 +30,19 @@ button { padding: 12px 32px; font-size: 16px; border: none; border-radius: 6px; 
 </div>
 <div id="result"></div>
 <script>
+(function() {
+  var aclMsg = '{{aclMessage}}';
+  if (aclMsg) {
+    var el = document.getElementById('aclMessage');
+    if (el) {
+      // Convert Markdown-style links [text](url) to HTML
+      var linked = aclMsg.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      // Also auto-link bare URLs that aren't already linked
+      linked = linked.replace(/(^|[^">])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank">$2</a>');
+      el.innerHTML = linked;
+    }
+  }
+})();
 function respond(action) {
   document.getElementById('buttons').style.display = 'none';
   var r = document.getElementById('result');

@@ -513,15 +513,21 @@ if ($action -eq "acl") {
             exit 1
         }
 
+        # Get file props (includes aclMessage) - shared across all verbs
+        $props = Invoke-Api -Method GET -Query @{ action = "file:props"; id = $aclFileId }
+        $aclMessage = $props.aclMessage
+        $displayMsg = if ($aclMessage) { $aclMessage -replace '\[([^\]]+)\]\(([^)]+)\)', '$1 ($2)' } else { $null }
+
         switch ($aclFileVerb) {
             "" {
-                Format-Output (Invoke-Api -Method GET -Query @{ action = "file:props"; id = $aclFileId })
+                Format-Output $props
             }
             "deny" {
                 if (-not [Environment]::UserInteractive) {
                     Write-Error "ACL change requires interactive terminal"; exit 1
                 }
                 Write-Host "WARNING: This will DENY all myg access (read & write) to this file."
+                if ($displayMsg) { Write-Host $displayMsg -ForegroundColor Yellow }
                 $confirm = Read-Host "Proceed? [y/N]"
                 if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
                 Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "-" })
@@ -531,6 +537,7 @@ if ($action -eq "acl") {
                     Write-Error "ACL change requires interactive terminal"; exit 1
                 }
                 Write-Host "This will set the file to READ-ONLY via myg."
+                if ($displayMsg) { Write-Host $displayMsg -ForegroundColor Yellow }
                 $confirm = Read-Host "Proceed? [y/N]"
                 if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
                 Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "r" })
@@ -540,6 +547,7 @@ if ($action -eq "acl") {
                     Write-Error "ACL change requires interactive terminal"; exit 1
                 }
                 Write-Host "This will set the file to READ+WRITE via myg."
+                if ($displayMsg) { Write-Host $displayMsg -ForegroundColor Yellow }
                 $confirm = Read-Host "Proceed? [y/N]"
                 if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Host "Cancelled."; exit 0 }
                 Format-Output (Invoke-Api -Method POST -Body @{ action = "file:props:set"; id = $aclFileId; value = "w" })
