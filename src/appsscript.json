@@ -36,6 +36,11 @@
         "userSymbol": "Docs",
         "version": "v1",
         "serviceId": "docs"
+      },
+      {
+        "userSymbol": "Slides",
+        "version": "v1",
+        "serviceId": "slides"
       }
     ]
   },
