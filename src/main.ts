@@ -177,6 +177,25 @@ function doGet(
       case "gas:file":
         result = getGasFile(e.parameter.script, e.parameter.name);
         break;
+      case "map:route":
+        result = getMapRoute(e.parameter.from, e.parameter.to, e.parameter.via, e.parameter.mode);
+        break;
+      case "map:route:image":
+        result = getMapRouteImage(
+          e.parameter.from,
+          e.parameter.to,
+          e.parameter.via,
+          e.parameter.mode,
+          e.parameter.width ? parseInt(e.parameter.width) : undefined,
+          e.parameter.height ? parseInt(e.parameter.height) : undefined,
+        );
+        break;
+      case "map:geocode":
+        result = geocodeAddress(e.parameter.address);
+        break;
+      case "map:reverse":
+        result = reverseGeocode(parseFloat(e.parameter.lat), parseFloat(e.parameter.lng));
+        break;
       default:
         result = { error: `Unknown action: ${action}` };
     }
