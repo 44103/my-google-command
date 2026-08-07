@@ -994,6 +994,8 @@ elif [[ -n "$map_subaction" ]]; then
       # Extract base64 data and decode
       echo "$content_url" | sed 's/^data:image\/png;base64,//' | base64 -d > "$m_output"
       echo "$m_output"
+      # Open the image file (ignore errors if no display available)
+      open_browser "$m_output" 2>/dev/null || true
       exit 0
     elif [[ "$m_output" == "url" ]]; then
       # Open Google Maps URL in browser
