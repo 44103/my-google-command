@@ -153,19 +153,19 @@ function getMapRouteImage(
   const markerSize = Maps.StaticMap.MarkerSize.MID as unknown as string;
   const markerColor = Maps.StaticMap.Color.RED as unknown as string;
 
-  // Build all markers: start(1), waypoints(2..n), end(n+1)
+  // Build all markers: S=start, 1-8=waypoints, G=goal
   const allPoints: { location: string; label: string }[] = [];
   
   // Start point
-  allPoints.push({ location: from, label: "1" });
+  allPoints.push({ location: from, label: "S" });
   
-  // Waypoints
+  // Waypoints (1-8)
   for (let i = 0; i < route.waypoints.length; i++) {
-    allPoints.push({ location: route.waypoints[i], label: String(i + 2) });
+    allPoints.push({ location: route.waypoints[i], label: String(i + 1) });
   }
   
-  // End point
-  allPoints.push({ location: to, label: String(route.waypoints.length + 2) });
+  // End point (Goal)
+  allPoints.push({ location: to, label: "G" });
 
   // Add each marker with its own style setting
   for (const point of allPoints) {
