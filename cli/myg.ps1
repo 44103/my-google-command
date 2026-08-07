@@ -1115,6 +1115,82 @@ switch ($action) {
         break
     }
 
+    # --- Map route (GET, with optional image output) ---
+    { $_ -eq "map" -and $subaction -eq "route" } {
+        $m_from = Get-Val "from"
+        $m_to = Get-Val "to"
+        $m_via = Get-Val "via"
+        $m_mode = Get-Val "mode" "walking"
+        $m_output = Get-Val "output"
+        $m_width = Get-Val "width"
+        $m_height = Get-Val "height"
+
+        if (-not $m_from) { Write-Error "from is required"; exit 1 }
+        if (-not $m_to) { Write-Error "to is required"; exit 1 }
+
+        if ($m_output -match '\.png$') {
+            # Image output
+            $resp = Invoke-Api -Method GET -Query @{
+                action = "map:route:image"; from = $m_from; to = $m_to
+                via = $m_via; mode = $m_mode; width = $m_width; height = $m_height
+            }
+            if ($resp -is [string]) { $resp = $resp | ConvertFrom-Json }
+            $contentUrl = $resp.contentUrl
+            if (-not $contentUrl -or $contentUrl -notmatch '^data:image/png;base64,') {
+                Write-Error "Invalid image data returned by GAS"; exit 1
+            }
+            if (Test-Path $m_output) { Write-Error "Output file already exists: $m_output"; exit 1 }
+            $base64 = $contentUrl -replace '^data:image/png;base64,', ''
+            [IO.File]::WriteAllBytes((Resolve-Path -Path "." | Join-Path -ChildPath $m_output), [Convert]::FromBase64String($base64))
+            Write-Output $m_output
+            # Open image
+            Start-Process $m_output -ErrorAction SilentlyContinue
+        } elseif ($m_output -eq "url") {
+            # Open Google Maps URL
+            $resp = Invoke-Api -Method GET -Query @{
+                action = "map:route"; from = $m_from; to = $m_to; via = $m_via; mode = $m_mode
+            }
+            if ($resp -is [string]) { $resp = $resp | ConvertFrom-Json }
+            $mapUrl = $resp.url
+            if (-not $mapUrl) { Write-Error "No URL returned by GAS"; exit 1 }
+            Write-Output $mapUrl
+            Start-Process $mapUrl
+        } else {
+            # JSON output
+            Format-Output (Invoke-Api -Method GET -Query @{
+                action = "map:route"; from = $m_from; to = $m_to; via = $m_via; mode = $m_mode
+            })
+        }
+        break
+    }
+
+    # --- Map geocode (GET) ---
+    { $_ -eq "map" -and $subaction -eq "geocode" } {
+        $m_address = Get-Val "address"
+        # Handle positional argument
+        if (-not $m_address -and $remaining.Count -gt 0) {
+            foreach ($arg in $remaining) {
+                if ($arg -notmatch '=') { $m_address = $arg; break }
+            }
+        }
+        if (-not $m_address) { Write-Error "address is required"; exit 1 }
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "map:geocode"; address = $m_address
+        })
+        break
+    }
+
+    # --- Map reverse (GET) ---
+    { $_ -eq "map" -and $subaction -eq "reverse" } {
+        $m_lat = Get-Val "lat"
+        $m_lng = Get-Val "lng"
+        if (-not $m_lat -or -not $m_lng) { Write-Error "lat and lng are required"; exit 1 }
+        Format-Output (Invoke-Api -Method GET -Query @{
+            action = "map:reverse"; lat = $m_lat; lng = $m_lng
+        })
+        break
+    }
+
     # --- Default: GET with all args as query params ---
     default {
         $query = @{ action = $action }
