@@ -182,15 +182,16 @@ function getSlideThumbnail(
   const pres = SlidesApp.openById(id);
   const { slide, pageNum } = getSlideByPage(pres, page);
   const thumbnail = Slides.Presentations!.Pages!.getThumbnail(id, slide.getObjectId(), {
-    thumbnailProperties: { mimeType: "PNG", thumbnailSize: "LARGE" },
+    "thumbnailProperties.mimeType": "PNG",
+    "thumbnailProperties.thumbnailSize": "LARGE",
   });
   if (!thumbnail.contentUrl) throw new Error("Google Slides API did not return a thumbnail URL");
   return {
     page: pageNum,
     pageId: slide.getObjectId(),
     contentUrl: thumbnail.contentUrl,
-    width: thumbnail.width || 0,
-    height: thumbnail.height || 0,
+    width: thumbnail.width ?? 0,
+    height: thumbnail.height ?? 0,
     mimeType: "image/png",
   };
 }
