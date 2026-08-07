@@ -2,7 +2,9 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$script:PipelineInput = @($input) -join [char]10
+$pipelineItems = @($input)
+$script:HasPipelineInput = $pipelineItems.Count -gt 0 -or [Console]::IsInputRedirected
+$script:PipelineInput = $pipelineItems -join [char]10
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
@@ -613,6 +615,10 @@ function Check-Permission {
 # Resolve full action name for permission check
 $fullAction = $action
 if ($subaction) { $fullAction = "$action $subaction" }
+if ($action -eq "slide" -and $subaction -in "text", "shape" -and
+    $remaining.Count -gt 0 -and $remaining[0] -notmatch '=') {
+    $fullAction = "slide $subaction $($remaining[0])"
+}
 Check-Permission $fullAction
 
 switch ($action) {
@@ -656,6 +662,66 @@ switch ($action) {
             choices = Get-Val "choices"; required = if ("required" -in $flags) { "true" } else { "" }
             low = Get-Val "low"; high = Get-Val "high"
             lowLabel = Get-Val "lowLabel"; highLabel = Get-Val "highLabel"
+        }
+        Format-Output (Invoke-Api -Method POST -Body $body)
+        break
+    }
+
+    # --- Slide inspection and thumbnail (GET) ---
+    { $_ -eq "slide" -and $subaction -eq "inspect" } {
+        $q = @{ action = "slide:inspect"; id = Get-Val "id" }
+        $page = Get-Val "page"
+        if ($page) { $q["page"] = $page }
+        Format-Output (Invoke-Api -Method GET -Query $q)
+        break
+    }
+
+    { $_ -eq "slide" -and $subaction -eq "thumbnail" } {
+        $page = Get-Val "page"
+        if (-not $page) { Write-Error "page is required"; exit 1 }
+        $thumb = Invoke-Api -Method GET -Query @{
+            action = "slide:thumbnail"; id = Get-Val "id"; page = $page
+        }
+        if ($thumb -is [string]) { $thumb = $thumb | ConvertFrom-Json }
+        if ($thumb.PSObject.Properties["error"]) {
+            Write-Error $thumb.error; exit 1
+        }
+        if (-not $thumb.PSObject.Properties["contentUrl"] -or
+            -not $thumb.contentUrl -or $thumb.contentUrl -notmatch '^https://') {
+            Write-Error "Invalid thumbnail URL returned by GAS"; exit 1
+        }
+        $output = Get-Val "output" "slide-$page.png"
+        if (Test-Path $output) { Write-Error "Output file already exists: $output"; exit 1 }
+        Invoke-WebRequest -Uri $thumb.contentUrl -OutFile $output -UseBasicParsing
+        Write-Output $output
+        break
+    }
+
+    # --- Slide text and shape updates (POST) ---
+    { $_ -eq "slide" -and $subaction -in "text", "shape" } {
+        $sub2 = if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') { $remaining[0] } else { "" }
+        $remaining = @(if ($remaining.Count -gt 1) { $remaining[1..($remaining.Count - 1)] })
+        $parsed = Parse-Args $remaining
+        if ($subaction -eq "text" -and $sub2 -eq "update") {
+            if (-not $script:HasPipelineInput) { Write-Error "No slide text provided via stdin"; exit 1 }
+            $text = Read-Stdin
+            $body = @{
+                action = "slide:text:update"; id = Get-Val "id"; page = Get-Val "page"
+                shape = Get-Val "shape"; text = $text; dryRun = Get-Val "dry-run"
+            }
+        } elseif ($subaction -eq "text" -and $sub2 -eq "style") {
+            $body = @{
+                action = "slide:text:style"; id = Get-Val "id"; page = Get-Val "page"
+                shape = Get-Val "shape"; size = Get-Val "size"; dryRun = Get-Val "dry-run"
+            }
+        } elseif ($subaction -eq "shape" -and $sub2 -eq "update") {
+            $body = @{
+                action = "slide:shape:update"; id = Get-Val "id"; page = Get-Val "page"
+                shape = Get-Val "shape"; width = Get-Val "width"; height = Get-Val "height"
+                x = Get-Val "x"; y = Get-Val "y"; dryRun = Get-Val "dry-run"
+            }
+        } else {
+            Write-Error "Unknown slide subcommand"; exit 1
         }
         Format-Output (Invoke-Api -Method POST -Body $body)
         break

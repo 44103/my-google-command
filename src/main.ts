@@ -4,6 +4,7 @@
 function authorizeScopes() {
   UrlFetchApp.fetch("https://www.google.com");
   Drive.Revisions!.list("dummy");
+  Slides.Presentations!.get("dummy");
 }
 
 function doGet(
@@ -125,6 +126,14 @@ function doGet(
       case "slide":
         checkAcl(resolveId(e.parameter), "r");
         result = getSlideContent(resolveId(e.parameter), e.parameter.page);
+        break;
+      case "slide:inspect":
+        checkAcl(resolveId(e.parameter), "r");
+        result = inspectSlide(resolveId(e.parameter), e.parameter.page);
+        break;
+      case "slide:thumbnail":
+        checkAcl(resolveId(e.parameter), "r");
+        result = getSlideThumbnail(resolveId(e.parameter), e.parameter.page);
         break;
       case "slide:notes":
         result = getSlideNotes(resolveId(e.parameter), e.parameter.page);
@@ -348,6 +357,23 @@ function doPost(
         checkAcl(resolveId(body), "w");
         result = addSlideText(resolveId(body), body.page, body.text);
         trackFileWrite(resolveId(body));
+        break;
+      case "slide:text:update":
+        checkAcl(resolveId(body), "w");
+        result = updateSlideText(resolveId(body), body.page, body.shape, body.text, body.dryRun);
+        if (!isDryRun(body.dryRun)) trackFileWrite(resolveId(body));
+        break;
+      case "slide:text:style":
+        checkAcl(resolveId(body), "w");
+        result = updateSlideTextStyle(resolveId(body), body.page, body.shape, body.size, body.dryRun);
+        if (!isDryRun(body.dryRun)) trackFileWrite(resolveId(body));
+        break;
+      case "slide:shape:update":
+        checkAcl(resolveId(body), "w");
+        result = updateSlideShape(resolveId(body), body.page, body.shape, {
+          width: body.width, height: body.height, x: body.x, y: body.y,
+        }, body.dryRun);
+        if (!isDryRun(body.dryRun)) trackFileWrite(resolveId(body));
         break;
       case "slide:note:set":
         checkAcl(resolveId(body), "w");

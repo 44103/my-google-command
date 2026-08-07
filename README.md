@@ -313,6 +313,21 @@ myg slide addtext id=<ID> page=1 text="テキスト"      # テキストボッ�
 echo "長いテキスト" | myg slide addtext id=<ID> page=1  # stdin からも可
 cat deck.md | myg slide overwrite id=<ID> format=markdown  # Markdown からスライド上書き
 
+# 既存要素の検査・調整（座標と寸法の単位はポイント）
+myg slide inspect id=<ID>                            # 全ページの図形・書式を取得
+myg slide inspect id=<ID> page=2                     # 特定ページだけ取得
+# 混在書式は textRuns、段落ごとの行間は paragraphs に詳細が出力される
+
+myg slide thumbnail id=<ID> page=2 output=slide.png  # ページのPNGサムネイルを保存
+echo "差し替えテキスト" | myg slide text update id=<ID> page=2 shape=<OBJECT_ID>
+myg slide text style id=<ID> page=2 shape=<OBJECT_ID> size=28
+myg slide shape update id=<ID> page=2 shape=<OBJECT_ID> x=40 y=60 width=320 height=120
+
+# 更新せず、変更前後の値だけ確認
+echo "差し替えテキスト" | myg slide text update id=<ID> page=2 shape=<OBJECT_ID> dry-run=true
+myg slide text style id=<ID> page=2 shape=<OBJECT_ID> size=28 dry-run=true
+myg slide shape update id=<ID> page=2 shape=<OBJECT_ID> x=40 dry-run=true
+
 # スピーカーノート
 myg slide notes id=<ID>                              # 全ページのノート取得
 myg slide notes id=<ID> page=3                       # 特定ページのノート取得

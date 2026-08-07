@@ -76,6 +76,11 @@ Actions:
   slide create name="TITLE"       Create new presentation
   slide addpage id=<ID or URL>    Add blank page
   slide addtext id=<ID or URL> page=<N> text="TEXT"  Add text box (or stdin)
+  slide inspect id=<ID or URL> [page=<N>]  Inspect shapes, geometry, and text styles
+  slide thumbnail id=<ID or URL> page=<N> [output=<PATH>]  Save page thumbnail as PNG
+  slide text update id=<ID or URL> page=<N> shape=<OBJECT_ID> [dry-run=true]  Update text from stdin
+  slide text style id=<ID or URL> page=<N> shape=<OBJECT_ID> size=<PT> [dry-run=true]  Set font size
+  slide shape update id=<ID or URL> page=<N> shape=<OBJECT_ID> [x=<PT>] [y=<PT>] [width=<PT>] [height=<PT>] [dry-run=true]
   slide overwrite id=<ID or URL>  Overwrite all slides from stdin (format=markdown)
   slide notes id=<ID or URL> [page=<N>]  Get speaker notes (all or one page)
   slide note set id=<ID or URL> page=<N>  Set speaker note from stdin
@@ -176,6 +181,11 @@ Examples:
   myg slide addpage id=1abc...xyz
   myg slide addtext id=1abc...xyz page=1 text="Hello World"
   echo "Long text" | myg slide addtext id=1abc...xyz page=1
+  myg slide inspect id=1abc...xyz page=1
+  myg slide thumbnail id=1abc...xyz page=1 output=slide.png
+  echo "Updated" | myg slide text update id=1abc...xyz page=1 shape=g123 dry-run=true
+  myg slide text style id=1abc...xyz page=1 shape=g123 size=28
+  myg slide shape update id=1abc...xyz page=1 shape=g123 x=40 y=60 width=320 height=120
   myg tasklists
   myg tasks id=<TASKLIST_ID>
   myg task create id=<TASKLIST_ID> title="Buy milk"

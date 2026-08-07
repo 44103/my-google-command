@@ -786,18 +786,32 @@ if [[ "$action" == "file" && $# -gt 0 ]]; then
   esac
 fi
 
-# slide subcommands (create/addpage/addtext) use POST
+# slide subcommands
 slide_subaction=""
+slide_inspect=""
+slide_thumbnail=""
 slide_notes=""
 slide_note_set=""
 slide_note_clear=""
 if [[ "$action" == "slide" && $# -gt 0 ]]; then
   case "$1" in
     create|addpage|addtext|overwrite) slide_subaction="$1"; shift ;;
+    inspect) slide_inspect="1"; shift ;;
+    thumbnail) slide_thumbnail="1"; shift ;;
+    text)
+      shift
+      case "${1:-}" in
+        update|style) slide_subaction="text:$1"; shift ;;
+      esac
+      ;;
+    shape)
+      shift
+      if [[ "${1:-}" == "update" ]]; then slide_subaction="shape:update"; shift; fi
+      ;;
     notes) slide_notes="1"; shift ;;
     note)
       shift
-      case "$1" in
+      case "${1:-}" in
         set)   slide_note_set="1"; shift ;;
         clear) slide_note_clear="1"; shift ;;
       esac
@@ -875,7 +889,9 @@ full_action="$action"
 [[ -n "${task_subaction:-}" ]] && full_action="task $task_subaction"
 [[ -n "${tasklist_subaction:-}" ]] && full_action="tasklist $tasklist_subaction"
 [[ -n "${file_subaction:-}" ]] && full_action="file $file_subaction"
-[[ -n "${slide_subaction:-}" ]] && full_action="slide $slide_subaction"
+[[ -n "${slide_subaction:-}" ]] && full_action="slide ${slide_subaction//:/ }"
+[[ -n "${slide_inspect:-}" ]] && full_action="slide inspect"
+[[ -n "${slide_thumbnail:-}" ]] && full_action="slide thumbnail"
 [[ -n "${form_subaction:-}" ]] && full_action="form $form_subaction"
 [[ -n "${contacts_subaction:-}" ]] && full_action="contacts $contacts_subaction"
 [[ -n "${files_subaction:-}" ]] && full_action="files $files_subaction"
@@ -1011,6 +1027,33 @@ elif [[ -n "$comment_subaction" ]]; then
   fi
 
   response=$(gas_post "$json_body")
+elif [[ -n "$slide_inspect" || -n "$slide_thumbnail" ]]; then
+  si_id=""
+  si_page=""
+  slide_thumbnail_output=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)     si_id="${arg#id=}" ;;
+      page=*)   si_page="${arg#page=}" ;;
+      output=*) slide_thumbnail_output="${arg#output=}" ;;
+    esac
+  done
+  if [[ -z "$si_id" ]]; then
+    echo "Error: id is required" >&2
+    exit 1
+  fi
+  if [[ -n "$slide_thumbnail" && -z "$si_page" ]]; then
+    echo "Error: page is required" >&2
+    exit 1
+  fi
+  if [[ -n "$slide_thumbnail" ]]; then
+    params_json=$(jq -n --arg id "$si_id" --arg page "$si_page" \
+      '{action: "slide:thumbnail", id: $id, page: $page}')
+  else
+    params_json=$(jq -n --arg id "$si_id" --arg page "$si_page" \
+      'if $page == "" then {action: "slide:inspect", id: $id} else {action: "slide:inspect", id: $id, page: $page} end')
+  fi
+  response=$(gas_get "$params_json")
 elif [[ -n "$slide_notes" ]]; then
   sn_id=""
   sn_page=""
@@ -1067,6 +1110,13 @@ elif [[ -n "$slide_subaction" ]]; then
   sl_page=""
   sl_text=""
   sl_format=""
+  sl_shape=""
+  sl_size=""
+  sl_width=""
+  sl_height=""
+  sl_x=""
+  sl_y=""
+  sl_dry_run=""
   for arg in "$@"; do
     case "$arg" in
       id=*)     sl_id="${arg#id=}" ;;
@@ -1074,10 +1124,23 @@ elif [[ -n "$slide_subaction" ]]; then
       page=*)   sl_page="${arg#page=}" ;;
       text=*)   sl_text="${arg#text=}" ;;
       format=*) sl_format="${arg#format=}" ;;
+      shape=*)  sl_shape="${arg#shape=}" ;;
+      size=*)   sl_size="${arg#size=}" ;;
+      width=*)  sl_width="${arg#width=}" ;;
+      height=*) sl_height="${arg#height=}" ;;
+      x=*)      sl_x="${arg#x=}" ;;
+      y=*)      sl_y="${arg#y=}" ;;
+      dry-run=*) sl_dry_run="${arg#dry-run=}" ;;
     esac
   done
 
-  if [[ ("$slide_subaction" == "addtext" || "$slide_subaction" == "create" || "$slide_subaction" == "overwrite") && -z "$sl_text" && ! -t 0 ]]; then
+  if [[ "$slide_subaction" == "text:update" ]]; then
+    if [[ -t 0 ]]; then
+      echo "Error: No slide text provided via stdin" >&2
+      exit 1
+    fi
+    sl_text=$(cat)
+  elif [[ ("$slide_subaction" == "addtext" || "$slide_subaction" == "create" || "$slide_subaction" == "overwrite") && -z "$sl_text" && ! -t 0 ]]; then
     sl_text=$(cat)
   fi
 
@@ -1088,7 +1151,16 @@ elif [[ -n "$slide_subaction" ]]; then
     --arg page "$sl_page" \
     --arg text "$sl_text" \
     --arg format "$sl_format" \
-    '{action: ("slide:" + $sub), id: $id, name: $name, page: $page, text: $text, format: $format}')
+    --arg shape "$sl_shape" \
+    --arg size "$sl_size" \
+    --arg width "$sl_width" \
+    --arg height "$sl_height" \
+    --arg x "$sl_x" \
+    --arg y "$sl_y" \
+    --arg dryRun "$sl_dry_run" \
+    '{action: ("slide:" + $sub), id: $id, name: $name, page: $page, text: $text,
+      format: $format, shape: $shape, size: $size, width: $width, height: $height,
+      x: $x, y: $y, dryRun: $dryRun}')
 
   response=$(gas_post "$json_body")
 elif [[ -n "$file_subaction" ]]; then
@@ -1683,6 +1755,27 @@ if [[ -n "$error_msg" ]]; then
   fi
 
   exit 1
+fi
+
+if [[ -n "${slide_thumbnail:-}" ]]; then
+  thumbnail_url=$(echo "$response" | jq -r '.contentUrl // empty')
+  if [[ "$thumbnail_url" != https://* ]]; then
+    echo "Error: Invalid thumbnail URL returned by GAS" >&2
+    exit 1
+  fi
+  if [[ -z "$slide_thumbnail_output" ]]; then
+    slide_thumbnail_output="slide-${si_page}.png"
+  fi
+  if [[ -e "$slide_thumbnail_output" ]]; then
+    echo "Error: Output file already exists: $slide_thumbnail_output" >&2
+    exit 1
+  fi
+  if ! curl -fsSL "$thumbnail_url" -o "$slide_thumbnail_output"; then
+    echo "Error: Failed to download slide thumbnail" >&2
+    exit 1
+  fi
+  echo "$slide_thumbnail_output"
+  exit 0
 fi
 
 echo "$response" | jq . 2>/dev/null || echo "$response"
