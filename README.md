@@ -446,6 +446,38 @@ myg gas file script=<SCRIPT_ID> name=Code           # ソースコード表示
 </details>
 
 <details>
+<summary>Map (Google Maps)</summary>
+
+```bash
+# ルート検索 (JSON 出力)
+myg map route from="Tokyo Station" to="Shibuya Station"
+myg map route from="Tokyo Station" to="Shibuya Station" mode=driving
+
+# 経由地付きルート検索 (最大8箇所)
+myg map route from="Tokyo Station" to="Yokohama Station" "via=Shinagawa Station|Kawasaki Station"
+
+# ルート検索 + Google Maps URL をブラウザで開く
+myg map route from="Tokyo Station" to="Shibuya Station" output=url
+
+# ルート検索 + 静的地図画像を保存
+myg map route from="Tokyo Station" to="Shibuya Station" output=route.png
+myg map route from="Tokyo Station" to="Shibuya Station" output=route.png width=800 height=600
+
+# ジオコーディング (住所 → 緯度経度)
+myg map geocode address="Tokyo Tower"
+myg map geocode "東京タワー"
+
+# 逆ジオコーディング (緯度経度 → 住所)
+myg map reverse lat=35.6585805 lng=139.7454329
+```
+
+移動モード: `walking` (デフォルト), `driving`, `bicycling`, `transit`
+
+マーカーラベル: 静的地図画像では、出発地は **S** (Start)、経由地は **1-8**、目的地は **G** (Goal) で表示されます。
+
+</details>
+
+<details>
 <summary>ACL (アクション権限設定)</summary>
 
 `.permission.json` をリポジトリルートに作成すると、使用できるアクションを制限できます。
