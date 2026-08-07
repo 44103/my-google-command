@@ -876,6 +876,14 @@ if [[ "$action" == "gas" && $# -gt 0 ]]; then
   esac
 fi
 
+# map subcommands use GET
+map_subaction=""
+if [[ "$action" == "map" && $# -gt 0 ]]; then
+  case "$1" in
+    route|geocode|reverse) map_subaction="$1"; shift ;;
+  esac
+fi
+
 # Resolve full action name for permission check (normalize : to space for user-facing format)
 full_action="$action"
 [[ -n "${doc_subaction:-}" ]] && full_action="doc $doc_subaction"
@@ -898,6 +906,7 @@ full_action="$action"
 [[ -n "${tasks_subaction:-}" ]] && full_action="tasks $tasks_subaction"
 [[ -n "${event_subaction:-}" ]] && full_action="event $event_subaction"
 [[ -n "${gas_subaction:-}" ]] && full_action="gas $gas_subaction"
+[[ -n "${map_subaction:-}" ]] && full_action="map $map_subaction"
 check_permission "$full_action"
 
 if [[ -n "$gas_subaction" ]]; then
@@ -917,6 +926,117 @@ if [[ -n "$gas_subaction" ]]; then
   [[ -n "$g_name" ]] && curl_args+=(--data-urlencode "name=${g_name}")
   [[ -n "$g_max" ]] && curl_args+=(--data-urlencode "max=${g_max}")
   response=$(curl "${curl_args[@]}" "$BASE")
+elif [[ -n "$map_subaction" ]]; then
+  m_from=""
+  m_to=""
+  m_via=""
+  m_mode=""
+  m_address=""
+  m_lat=""
+  m_lng=""
+  m_output=""
+  m_width=""
+  m_height=""
+  for arg in "$@"; do
+    case "$arg" in
+      from=*)    m_from="${arg#from=}" ;;
+      to=*)      m_to="${arg#to=}" ;;
+      via=*)     m_via="${arg#via=}" ;;
+      mode=*)    m_mode="${arg#mode=}" ;;
+      address=*) m_address="${arg#address=}" ;;
+      lat=*)     m_lat="${arg#lat=}" ;;
+      lng=*)     m_lng="${arg#lng=}" ;;
+      output=*)  m_output="${arg#output=}" ;;
+      width=*)   m_width="${arg#width=}" ;;
+      height=*)  m_height="${arg#height=}" ;;
+    esac
+  done
+  # Handle positional address for geocode
+  if [[ "$map_subaction" == "geocode" && -z "$m_address" && $# -gt 0 ]]; then
+    for arg in "$@"; do
+      if [[ "$arg" != *"="* ]]; then
+        m_address="$arg"
+        break
+      fi
+    done
+  fi
+
+  if [[ "$map_subaction" == "route" ]]; then
+    if [[ -z "$m_from" ]]; then
+      echo "Error: from is required" >&2
+      exit 1
+    fi
+    if [[ -z "$m_to" ]]; then
+      echo "Error: to is required" >&2
+      exit 1
+    fi
+    # Check if image output is requested
+    if [[ "$m_output" == *.png || "$m_output" == *.PNG ]]; then
+      params_json=$(jq -n \
+        --arg from "$m_from" \
+        --arg to "$m_to" \
+        --arg via "$m_via" \
+        --arg mode "$m_mode" \
+        --arg width "$m_width" \
+        --arg height "$m_height" \
+        '{action: "map:route:image", from: $from, to: $to, via: $via, mode: $mode, width: $width, height: $height}')
+      response=$(gas_get "$params_json")
+      # Download the image from base64 data URL
+      content_url=$(echo "$response" | jq -r '.contentUrl // empty')
+      if [[ "$content_url" != data:image/png* ]]; then
+        echo "Error: Invalid image data returned by GAS" >&2
+        exit 1
+      fi
+      if [[ -e "$m_output" ]]; then
+        echo "Error: Output file already exists: $m_output" >&2
+        exit 1
+      fi
+      # Extract base64 data and decode
+      echo "$content_url" | sed 's/^data:image\/png;base64,//' | base64 -d > "$m_output"
+      echo "$m_output"
+      exit 0
+    elif [[ "$m_output" == "url" ]]; then
+      # Open Google Maps URL in browser
+      params_json=$(jq -n \
+        --arg from "$m_from" \
+        --arg to "$m_to" \
+        --arg via "$m_via" \
+        --arg mode "$m_mode" \
+        '{action: "map:route", from: $from, to: $to, via: $via, mode: $mode}')
+      response=$(gas_get "$params_json")
+      map_url=$(echo "$response" | jq -r '.url // empty')
+      if [[ -z "$map_url" ]]; then
+        echo "Error: No URL returned by GAS" >&2
+        echo "$response" >&2
+        exit 1
+      fi
+      echo "$map_url"
+      open_browser "$map_url"
+      exit 0
+    else
+      params_json=$(jq -n \
+        --arg from "$m_from" \
+        --arg to "$m_to" \
+        --arg via "$m_via" \
+        --arg mode "$m_mode" \
+        '{action: "map:route", from: $from, to: $to, via: $via, mode: $mode}')
+      response=$(gas_get "$params_json")
+    fi
+  elif [[ "$map_subaction" == "geocode" ]]; then
+    if [[ -z "$m_address" ]]; then
+      echo "Error: address is required" >&2
+      exit 1
+    fi
+    params_json=$(jq -n --arg address "$m_address" '{action: "map:geocode", address: $address}')
+    response=$(gas_get "$params_json")
+  elif [[ "$map_subaction" == "reverse" ]]; then
+    if [[ -z "$m_lat" || -z "$m_lng" ]]; then
+      echo "Error: lat and lng are required" >&2
+      exit 1
+    fi
+    params_json=$(jq -n --arg lat "$m_lat" --arg lng "$m_lng" '{action: "map:reverse", lat: $lat, lng: $lng}')
+    response=$(gas_get "$params_json")
+  fi
 elif [[ -n "$tasks_subaction" ]]; then
   tc_id=""
   for arg in "$@"; do

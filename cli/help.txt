@@ -133,6 +133,10 @@ Actions:
   gas list [max=<N>]                    List GAS projects (default: 20)
   gas files script=<SCRIPT_ID or URL>   List source files
   gas file script=<SCRIPT_ID or URL> name=<FILENAME>  Get source code
+  map route from="A" to="B" [via="C,D"] [mode=walking|driving|transit|bicycling]  Search route
+  map route ... output=<PATH.png>       Save route as static map image
+  map geocode "ADDRESS"                 Get lat/lng from address
+  map reverse lat=<LAT> lng=<LNG>       Get address from lat/lng
   daemon start                    Start the local daemon
   daemon stop                     Stop the local daemon
   daemon status                   Show daemon status
