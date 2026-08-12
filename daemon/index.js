@@ -91,21 +91,51 @@ function jsonResponse(res, status, data) {
 }
 
 /**
- * Follow redirects manually using http/https.request.
- * fetch() handles redirects automatically but does not expose intermediate URLs.
- * We use fetch() for the actual proxy since Node 18+ guarantees it.
+ * Proxy a request to GAS, handling the domain-restricted redirect flow.
+ *
+ * GAS (Google Apps Script) deployed to a Google Workspace domain responds to
+ * POST requests with a 302 redirect to a one-time
+ * `script.googleusercontent.com/a/macros/<domain>/echo?user_content_key=...`
+ * URL that carries the actual response body. This echo URL requires a GET
+ * request *without* an Authorization header — the user_content_key acts as
+ * the credential. Blindly following the redirect (redirect:"follow") causes
+ * Node's fetch to carry the Authorization header to the cross-origin echo URL,
+ * which results in a 404 from Google's servers.
+ *
+ * Fix: intercept the 302 manually and re-fetch the Location URL as an
+ * unauthenticated GET so that Google returns the real JSON response.
+ *
+ * GET requests to GAS also go through a redirect chain, but they redirect
+ * back to script.google.com (same origin) where Authorization is valid, so
+ * redirect:"follow" works correctly for them.
  */
 async function proxyToGas(method, gasUrl, headers, body) {
   const options = {
     method,
     headers: { ...headers },
-    redirect: "follow",
+    redirect: method === "POST" ? "manual" : "follow",
   };
   if (body) {
     options.body = body;
   }
 
   const res = await fetch(gasUrl, options);
+
+  // POST: follow the 302 echo URL without Authorization
+  if (method === "POST" && res.status === 302) {
+    const echoUrl = res.headers.get("location");
+    if (!echoUrl) {
+      throw new Error("GAS returned 302 with no Location header");
+    }
+    const echoRes = await fetch(echoUrl, { redirect: "follow" });
+    const text = await echoRes.text();
+    return {
+      status: echoRes.status,
+      headers: Object.fromEntries(echoRes.headers.entries()),
+      body: text,
+    };
+  }
+
   const text = await res.text();
   return {
     status: res.status,
