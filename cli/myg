@@ -1827,9 +1827,14 @@ elif [[ -n "$doc_subaction" ]]; then
     response=$(gas_get "{\"action\":\"doc:tabs\",\"id\":\"${doc_id}\"}")
   else
     stdin_text=""
-    if [[ ! -t 0 ]]; then
-      stdin_text=$(cat)
-    fi
+    # Only read stdin for subcommands that accept body text
+    case "$doc_subaction" in
+      create|append|overwrite)
+        if [[ ! -t 0 ]]; then
+          stdin_text=$(cat)
+        fi
+        ;;
+    esac
 
     json_body=$(jq -n \
       --arg sub "$doc_subaction" \
