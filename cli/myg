@@ -204,6 +204,13 @@ gas_post() {
     -d "$post_body" "$BASE"
 }
 
+# --- Utility: encode a shell variable as a JSON string ---
+# Uses jq --arg so no trailing-newline issue (unlike echo | jq -Rs).
+# Usage: to_json_string "$value"  → "\"escaped value\""
+to_json_string() {
+  jq -n --arg v "$1" '$v'
+}
+
 # --- Common confirmation function ---
 # Usage: require_confirm "message" ["action_label"] ["aclMessage"]
 # TTY: interactive y/N prompt
@@ -1844,7 +1851,7 @@ else
     key="${arg%%=*}"
     val="${arg#*=}"
     # Escape JSON special characters in value
-    val=$(echo "$val" | jq -Rs '.')
+    val=$(to_json_string "$val")
     params_json="${params_json},\"${key}\":${val}"
   done
   params_json="${params_json}}"
