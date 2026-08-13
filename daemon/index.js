@@ -278,6 +278,12 @@ async function handleRequest(req, res) {
 
       const gasRes = await proxyToGas(gasMethod || "GET", targetUrl, headers, reqBody);
 
+      // Treat 401 as token expiry
+      if (gasRes.status === 401) {
+        jsonResponse(res, 401, { error: "Token expired. Run: myg auth" });
+        return;
+      }
+
       // Pass through the response
       res.writeHead(gasRes.status, {
         "Content-Type": gasRes.headers["content-type"] || "application/json",

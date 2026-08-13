@@ -38,14 +38,14 @@ daemon_check_node() {
   if ! command -v node &>/dev/null; then
     echo "Error: Node.js is required but not found in PATH." >&2
     echo "Install Node.js 18+ from https://nodejs.org/" >&2
-    exit 1
+    return 1
   fi
   local node_major
   node_major=$(node -v | sed 's/v//' | cut -d. -f1)
   if [[ $node_major -lt 18 ]]; then
     echo "Error: Node.js 18+ required (found: $(node -v))" >&2
     echo "Install Node.js 18+ from https://nodejs.org/" >&2
-    exit 1
+    return 1
   fi
 }
 
@@ -65,7 +65,7 @@ daemon_start() {
     if lsof -i ":${DAEMON_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "Error: Port ${DAEMON_PORT} is already in use." >&2
       echo "Check with: lsof -i :${DAEMON_PORT}" >&2
-      exit 1
+      return 1
     fi
   fi
 
@@ -97,7 +97,7 @@ daemon_start() {
       else
         echo "No log output available. Check that Node.js is working correctly." >&2
       fi
-      exit 1
+      return 1
     fi
     # Exponential backoff: 100, 200, 400, 800, 1000 (cap at 1s)
     wait_ms=$((wait_ms * 2))
@@ -112,7 +112,7 @@ daemon_start() {
     cat "$DAEMON_LOG" >&2
     echo "--- End log ---" >&2
   fi
-  exit 1
+  return 1
 }
 
 daemon_stop() {
@@ -145,6 +145,21 @@ daemon_status() {
 # Usage: gas_get '{"action":"xxx", "id":"yyy"}'
 # Usage: gas_post '{"action":"xxx", "data":"yyy"}'
 
+_daemon_auth_error() {
+  local resp="$1"
+  local err
+  err=$(echo "$resp" | jq -r '.error // empty' 2>/dev/null)
+  case "$err" in
+    "No token. Run: myg auth")
+      echo "No credentials. Run: myg auth" >&2
+      return 0 ;;
+    "Token expired. Run: myg auth")
+      echo "Token expired. Run: myg auth" >&2
+      return 0 ;;
+  esac
+  return 1
+}
+
 gas_get() {
   local params="$1"
   # Try daemon proxy first
@@ -156,9 +171,7 @@ gas_get() {
     resp=$(curl -s -X POST "${DAEMON_URL}/proxy" \
       -H "Content-Type: application/json" \
       -d "$json_body")
-    # Check for daemon auth error
-    if echo "$resp" | jq -e '.error == "No token. Run: myg auth"' >/dev/null 2>&1; then
-      echo "$resp"
+    if _daemon_auth_error "$resp"; then
       return 1
     fi
     echo "$resp"
@@ -166,13 +179,23 @@ gas_get() {
   fi
   # Fallback to direct curl
   if [[ -z "${ACCESS_TOKEN:-}" ]]; then
-    echo '{"error":"No token. Run: myg auth"}'
+    echo "No credentials. Run: myg auth" >&2
     return 1
   fi
   local url="$BASE"
   local qs
   qs=$(echo "$params" | jq -r 'to_entries | map("\(.key)=\(.value | @uri)") | join("&")')
-  curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G "${url}?${qs}"
+  local resp
+  resp=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G "${url}?${qs}")
+  if echo "$resp" | jq -e '.error' >/dev/null 2>&1; then
+    local status
+    status=$(echo "$resp" | jq -r '.error')
+    if [[ "$status" == *"401"* || "$status" == *"Unauthorized"* ]]; then
+      echo "Token expired. Run: myg auth" >&2
+      return 1
+    fi
+  fi
+  echo "$resp"
 }
 
 gas_post() {
@@ -186,9 +209,7 @@ gas_post() {
     resp=$(curl -s -X POST "${DAEMON_URL}/proxy" \
       -H "Content-Type: application/json" \
       -d "$json_body")
-    # Check for daemon auth error
-    if echo "$resp" | jq -e '.error == "No token. Run: myg auth"' >/dev/null 2>&1; then
-      echo "$resp"
+    if _daemon_auth_error "$resp"; then
       return 1
     fi
     echo "$resp"
@@ -196,12 +217,22 @@ gas_post() {
   fi
   # Fallback to direct curl
   if [[ -z "${ACCESS_TOKEN:-}" ]]; then
-    echo '{"error":"No token. Run: myg auth"}'
+    echo "No credentials. Run: myg auth" >&2
     return 1
   fi
-  curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  local resp
+  resp=$(curl -s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "$post_body" "$BASE"
+    -d "$post_body" "$BASE")
+  if echo "$resp" | jq -e '.error' >/dev/null 2>&1; then
+    local status
+    status=$(echo "$resp" | jq -r '.error')
+    if [[ "$status" == *"401"* || "$status" == *"Unauthorized"* ]]; then
+      echo "Token expired. Run: myg auth" >&2
+      return 1
+    fi
+  fi
+  echo "$resp"
 }
 
 # --- Utility: encode a shell variable as a JSON string ---
@@ -302,7 +333,7 @@ if [[ "$action" == "daemon" ]]; then
   daemon_verb="${1:-status}"
   shift 2>/dev/null || true
   case "$daemon_verb" in
-    start)  daemon_start; echo "Daemon is running." >&2 ;;
+    start)  daemon_start || exit 1; echo "Daemon is running." >&2 ;;
     stop)   daemon_stop; echo "Daemon stopped." >&2 ;;
     status) daemon_status ;;
     *)
@@ -675,15 +706,47 @@ File: ${file_url}" "myg acl file id=${acl_file_id}" "$acl_msg"
   exit 0
 fi
 
-# --- Token loading (traditional .token file) ---
-if [[ -f "$TOKEN_FILE" ]]; then
-  ACCESS_TOKEN=$(cat "$TOKEN_FILE")
+# --- Token loading (daemon memory preferred, .token file as fallback) ---
+# If daemon is running and has a token, API calls go through /proxy (no local token needed).
+# Attempt to start the daemon up to 5 times before falling back to .token file.
+ACCESS_TOKEN=""
+_daemon_has_token=false
+_daemon_ready=false
+if daemon_is_running; then
+  _daemon_ready=true
 else
-  echo "No credentials. Run: myg auth" >&2
-  exit 1
+  _daemon_max_retries=5
+  for (( _i=1; _i<=_daemon_max_retries; _i++ )); do
+    if daemon_start 2>/dev/null; then
+      _daemon_ready=true
+      break
+    fi
+    echo "Daemon start attempt ${_i}/${_daemon_max_retries} failed, retrying..." >&2
+  done
+fi
+if [[ "$_daemon_ready" == "true" ]]; then
+  _daemon_has_token=$(curl -s "${DAEMON_URL}/status" 2>/dev/null | jq -r '.hasToken // false')
+fi
+if [[ "$_daemon_has_token" != "true" ]]; then
+  if [[ "$_daemon_ready" == "true" ]]; then
+    # Daemon is running but has no token — .token is not a substitute here
+    echo "No credentials. Run: myg auth" >&2
+    exit 1
+  fi
+  # Daemon could not be started — fall back to .token file as last resort
+  if [[ -f "$TOKEN_FILE" ]]; then
+    ACCESS_TOKEN=$(cat "$TOKEN_FILE")
+    echo "Note: Using token from .token file (daemon failed to start). Run: myg auth to re-authenticate." >&2
+  else
+    echo "No credentials. Run: myg auth" >&2
+    exit 1
+  fi
 fi
 
-curl_args=(-s -L -G -H "Authorization: Bearer ${ACCESS_TOKEN}" --data-urlencode "action=${action}")
+curl_args=(-s -L -G --data-urlencode "action=${action}")
+if [[ -n "${ACCESS_TOKEN:-}" ]]; then
+  curl_args+=(-H "Authorization: Bearer ${ACCESS_TOKEN}")
+fi
 
 # Permission check via .permission.json
 check_permission() {
