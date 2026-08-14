@@ -296,3 +296,58 @@ yarn apply && yarn deploy
 ## 質問・相談
 
 Issue や PR のコメントで気軽に聞いてください。
+
+
+---
+
+## 認証フロー
+
+### トークンの状態遷移
+
+```mermaid
+stateDiagram-v2
+    [*] --> CheckDaemon : myg コマンド実行
+
+    CheckDaemon : daemon 起動中?
+    CheckDaemon --> CheckToken : Yes
+    CheckDaemon --> StartDaemon : No
+
+    StartDaemon : daemon 起動を試みる（最大5回リトライ）
+    StartDaemon --> CheckToken : 起動成功
+    StartDaemon --> FallbackLoad : 5回全部失敗
+
+    CheckToken : daemon に token あり？\n（/status の hasToken）
+    CheckToken --> ProxyRequest : Yes
+    CheckToken --> ErrorReauth : No（token なし・.token は使わない）
+
+    ProxyRequest : daemon /proxy 経由で\nGAS に API リクエスト
+    ProxyRequest --> Success : 200 OK
+    ProxyRequest --> ErrorReauth : 401 Unauthorized
+
+    FallbackLoad : .token ファイルあり?
+    FallbackLoad --> DirectCurl : Yes（stderr に Note 表示）
+    FallbackLoad --> ErrorNoToken : No
+
+    DirectCurl : direct curl で\nGAS に API リクエスト
+    DirectCurl --> Success : 200 OK
+    DirectCurl --> ErrorReauth : 401 Unauthorized
+
+    Success : 結果を返す
+    Success --> [*]
+
+    ErrorReauth : エラー表示\n"Run: myg auth"
+    ErrorReauth --> [*]
+
+    ErrorNoToken : 認証情報なしエラー\n"No credentials. Run: myg auth"
+    ErrorNoToken --> [*]
+```
+
+### 設計方針
+
+- トークンは **daemon のメモリで保持**するのが基本。daemon が起動していなければ最大5回起動を試みる
+- daemon が起動できていてもトークンがない場合は `.token` を使わずエラー終了し、`myg auth` を促す
+- `.token` フォールバックは daemon が5回リトライしても起動できなかった場合のみの最終手段
+- `.token` ファイルは将来的に廃止予定。daemon が安定したタイミングで移行する
+- トークンの外部露出を防ぐため、daemon はトークンそのものを返すエンドポイントを持たない。API リクエストは必ず `/proxy` 経由で行う
+- Google のアクセストークンは発行から **1時間で失効**する。期限切れは GAS からの `401` で検知する（時間ベースの判定は行わない）
+- 自動リフレッシュは行わない。`myg auth` を明示的に実行して再認証する

@@ -30,20 +30,23 @@ $DaemonPort = if ($env:MYG_DAEMON_PORT) { $env:MYG_DAEMON_PORT } else { "19333" 
 $DaemonHost = "127.0.0.1"
 $DaemonUrl = "http://${DaemonHost}:${DaemonPort}"
 $DaemonPidFile = Join-Path $ProjectDir ".daemon-pid"
-$DaemonLog = Join-Path $env:TEMP "myg-daemon.log"
+$DaemonLog = if ($env:TEMP) { Join-Path $env:TEMP "myg-daemon.log" } else { "/tmp/myg-daemon.log" }
 
 function Daemon-CheckNode {
     $nodePath = Get-Command node -ErrorAction SilentlyContinue
     if (-not $nodePath) {
-        Write-Error "Node.js is required but not found in PATH.`nInstall Node.js 18+ from https://nodejs.org/"
-        exit 1
+        Write-Host "Error: Node.js is required but not found in PATH." -ForegroundColor Red
+        Write-Host "Install Node.js 18+ from https://nodejs.org/" -ForegroundColor Red
+        return $false
     }
     $ver = (node -v) -replace '^v', ''
     $major = [int]($ver.Split('.')[0])
     if ($major -lt 18) {
-        Write-Error "Node.js 18+ required (found: v$ver)`nInstall Node.js 18+ from https://nodejs.org/"
-        exit 1
+        Write-Host "Error: Node.js 18+ required (found: v$ver)" -ForegroundColor Red
+        Write-Host "Install Node.js 18+ from https://nodejs.org/" -ForegroundColor Red
+        return $false
     }
+    return $true
 }
 
 function Daemon-IsRunning {
@@ -54,14 +57,22 @@ function Daemon-IsRunning {
 }
 
 function Daemon-Start {
-    if (Daemon-IsRunning) { return }
-    Daemon-CheckNode
+    if (Daemon-IsRunning) { return $true }
+    if (-not (Daemon-CheckNode)) { return $false }
 
     # Check port
-    $listener = Get-NetTCPConnection -LocalPort $DaemonPort -State Listen -ErrorAction SilentlyContinue
-    if ($listener) {
-        Write-Error "Port $DaemonPort is already in use."
-        exit 1
+    $portInUse = $false
+    if ($IsWindows) {
+        $listener = Get-NetTCPConnection -LocalPort $DaemonPort -State Listen -ErrorAction SilentlyContinue
+        if ($listener) { $portInUse = $true }
+    } else {
+        # Linux/macOS fallback
+        $check = & ss -tln 2>/dev/null | Select-String ":$DaemonPort " 
+        if ($check) { $portInUse = $true }
+    }
+    if ($portInUse) {
+        Write-Host "Error: Port $DaemonPort is already in use." -ForegroundColor Red
+        return $false
     }
 
     # Clear log
@@ -76,7 +87,7 @@ function Daemon-Start {
     while ($totalMs -lt $maxMs) {
         Start-Sleep -Milliseconds $waitMs
         $totalMs += $waitMs
-        if (Daemon-IsRunning) { return }
+        if (Daemon-IsRunning) { return $true }
         if ($proc.HasExited) {
             Write-Host "Error: Failed to start myg daemon." -ForegroundColor Red
             if ((Test-Path $DaemonLog) -and (Get-Item $DaemonLog).Length -gt 0) {
@@ -84,17 +95,17 @@ function Daemon-Start {
                 Get-Content $DaemonLog | Write-Host
                 Write-Host "--- End log ---" -ForegroundColor Yellow
             }
-            exit 1
+            return $false
         }
         $waitMs = [Math]::Min($waitMs * 2, 1000)
     }
-    Write-Error "Daemon did not respond within ${maxMs}ms."
+    Write-Host "Error: Daemon did not respond within ${maxMs}ms." -ForegroundColor Red
     if ((Test-Path $DaemonLog) -and (Get-Item $DaemonLog).Length -gt 0) {
         Write-Host "--- Daemon log ---" -ForegroundColor Yellow
         Get-Content $DaemonLog | Write-Host
         Write-Host "--- End log ---" -ForegroundColor Yellow
     }
-    exit 1
+    return $false
 }
 
 function Daemon-Stop {
@@ -103,8 +114,8 @@ function Daemon-Stop {
         Start-Sleep -Milliseconds 500
     }
     if (Test-Path $DaemonPidFile) {
-        $pid = Get-Content $DaemonPidFile -ErrorAction SilentlyContinue
-        if ($pid) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }
+        $daemonPid = Get-Content $DaemonPidFile -ErrorAction SilentlyContinue
+        if ($daemonPid) { Stop-Process -Id $daemonPid -Force -ErrorAction SilentlyContinue }
         Remove-Item $DaemonPidFile -Force -ErrorAction SilentlyContinue
     }
 }
@@ -205,11 +216,20 @@ function Invoke-Api {
                 } | ConvertTo-Json -Depth 10 -Compress
             }
             $resp = Invoke-RestMethod -Uri "$DaemonUrl/proxy" -Method Post -ContentType "application/json" -Body $proxyBody -ErrorAction Stop
+            # Check for auth errors from daemon
+            if ($resp.PSObject.Properties["error"]) {
+                $errMsg = $resp.error
+                if ($errMsg -eq "No token. Run: myg auth" -or $errMsg -eq "Token expired. Run: myg auth") {
+                    Write-Host $errMsg -ForegroundColor Red
+                    exit 1
+                }
+            }
             return $resp
         } catch {
-            # If daemon returns auth error, propagate it
-            if ($_.Exception.Response.StatusCode -eq 401) {
-                throw "No token. Run: myg auth"
+            # If daemon returns 401, treat as token expiry
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode -eq 401) {
+                Write-Host "Token expired. Run: myg auth" -ForegroundColor Red
+                exit 1
             }
             # Otherwise fall through to direct call
         }
@@ -266,7 +286,7 @@ if ($action -in "--help", "-h", "help") { Show-Help }
 if ($action -eq "daemon") {
     $daemonVerb = if ($remaining.Count -gt 0) { $remaining[0] } else { "status" }
     switch ($daemonVerb) {
-        "start"  { Daemon-Start; Write-Host "Daemon is running." -ForegroundColor Green }
+        "start"  { if (-not (Daemon-Start)) { exit 1 }; Write-Host "Daemon is running." -ForegroundColor Green }
         "stop"   { Daemon-Stop; Write-Host "Daemon stopped." -ForegroundColor Green }
         "status" { Daemon-Status }
         default  { Write-Error "Usage: myg daemon [start|stop|status]"; exit 1 }
@@ -338,11 +358,6 @@ if ($action -eq "auth") {
             try {
                 $status = Invoke-RestMethod -Uri "$DaemonUrl/status" -TimeoutSec 1
                 if ($status.hasToken) {
-                    # Save token to file for fallback
-                    try {
-                        $tokenVal = Invoke-RestMethod -Uri "$DaemonUrl/token" -TimeoutSec 1
-                        if ($tokenVal) { Set-Content -Path $TokenFile -Value $tokenVal -NoNewline }
-                    } catch {}
                     Write-Host "Authentication complete." -ForegroundColor Green
                     exit 0
                 }
@@ -568,12 +583,43 @@ if ($action -eq "acl") {
     exit 0
 }
 
-# Load token
-if (Test-Path $TokenFile) {
-    $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
+# Load token (daemon memory preferred, .token file as fallback)
+# Attempt to start the daemon up to 5 times before falling back to .token file.
+$script:AccessToken = ""
+$_daemonReady = $false
+if (Daemon-IsRunning) {
+    $_daemonReady = $true
 } else {
-    Write-Error "No credentials. Run: myg auth"
-    exit 1
+    $_daemonMaxRetries = 5
+    for ($_i = 1; $_i -le $_daemonMaxRetries; $_i++) {
+        if (Daemon-Start) {
+            $_daemonReady = $true
+            break
+        }
+        Write-Host "Daemon start attempt $_i/$_daemonMaxRetries failed, retrying..." -ForegroundColor Yellow
+    }
+}
+$_daemonHasToken = $false
+if ($_daemonReady) {
+    try {
+        $status = Invoke-RestMethod -Uri "$DaemonUrl/status" -TimeoutSec 1 -ErrorAction Stop
+        $_daemonHasToken = $status.hasToken
+    } catch {}
+}
+if (-not $_daemonHasToken) {
+    if ($_daemonReady) {
+        # Daemon is running but has no token — .token is not a substitute here
+        Write-Host "No credentials. Run: myg auth" -ForegroundColor Red
+        exit 1
+    }
+    # Daemon could not be started — fall back to .token file as last resort
+    if (Test-Path $TokenFile) {
+        $script:AccessToken = (Get-Content $TokenFile -Raw).Trim()
+        Write-Host "Note: Using token from .token file (daemon failed to start). Run: myg auth to re-authenticate." -ForegroundColor Yellow
+    } else {
+        Write-Host "No credentials. Run: myg auth" -ForegroundColor Red
+        exit 1
+    }
 }
 
 $parsed = Parse-Args $remaining

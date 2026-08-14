@@ -137,6 +137,23 @@ myg auth
 
 > `myg auth` 実行時に自動で `git pull` が行われます。更新があった場合はコミットログが表示されます。
 
+### WSL (Windows Subsystem for Linux) からの利用
+
+> [!IMPORTANT]
+> WSL から `myg auth` を使用する場合、WSL のネットワークモードを **mirrored** に設定する必要があります。
+>
+> `%USERPROFILE%\.wslconfig` に以下を追加してください：
+>
+> ```ini
+> [wsl2]
+> networkingMode=mirrored
+> ```
+>
+> 設定後、WSL を再起動してください（PowerShell で `wsl --shutdown` を実行後、再度 WSL を起動）。
+>
+> **理由**: `myg auth` はブラウザ経由で OAuth を行い、コールバック先として `localhost:19333` を使用します。
+> mirrored モードでは Windows と WSL が `localhost` を共有するため、ブラウザからのコールバックが WSL 内の daemon に正しく届きます。
+
 ### 使い方
 
 ```bash
