@@ -2,7 +2,7 @@
 
 interface MdBlock {
   type: "heading" | "text" | "list" | "code" | "table" | "blockquote" | "hr" | "empty";
-  level?: number;       // heading level 1-3
+  level?: number;       // heading level 1-4
   content: string;
   items?: string[];     // list items
   lang?: string;        // code language
@@ -40,7 +40,7 @@ function parseMarkdownBlocks(markdown: string): MdBlock[] {
     }
 
     // Heading
-    const hMatch = line.match(/^(#{1,3})\s+(.*)/);
+    const hMatch = line.match(/^(#{1,4})\s+(.*)/);
     if (hMatch) {
       blocks.push({ type: "heading", content: hMatch[2], level: hMatch[1].length });
       i++;
@@ -93,7 +93,7 @@ function parseMarkdownBlocks(markdown: string): MdBlock[] {
     while (
       i < lines.length &&
       lines[i].trim() &&
-      !/^#{1,3}\s/.test(lines[i]) &&
+      !/^#{1,4}\s/.test(lines[i]) &&
       !/^\s*([-*]|\d+\.)\s/.test(lines[i]) &&
       !lines[i].startsWith("```") &&
       !lines[i].trimStart().startsWith("|") &&
