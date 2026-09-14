@@ -27,6 +27,7 @@ function writeMarkdownToBody(body: GoogleAppsScript.Document.Body, markdown: str
           1: DocumentApp.ParagraphHeading.HEADING1,
           2: DocumentApp.ParagraphHeading.HEADING2,
           3: DocumentApp.ParagraphHeading.HEADING3,
+          4: DocumentApp.ParagraphHeading.HEADING4,
         };
         p.setHeading(headings[block.level || 1]);
         applyDocInlineStyles(p);

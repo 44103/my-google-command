@@ -160,7 +160,9 @@ function replacePlaceholders(id: string, tab?: string): void {
     }
   }
 
-  // Process links: try rich link first, fall back to plain hyperlink
+  // Process links: try rich link first (one request per link), collect failures,
+  // then do a single Documents.get re-fetch for all fallbacks to avoid redundant API calls.
+  const linkFallbacks: typeof linkMatches = [];
   for (const m of linkMatches) {
     const richReqs = [
       { deleteContentRange: { range: { startIndex: m.start, endIndex: m.end, tabId } } },
@@ -169,32 +171,72 @@ function replacePlaceholders(id: string, tab?: string): void {
     try {
       Docs.Documents!.batchUpdate({ requests: richReqs }, id);
     } catch (_) {
-      // Re-read positions since doc may have changed
-      const freshDoc = Docs.Documents!.get(id, { includeTabsContent: true } as any) as any;
-      const freshTab = tab
-        ? freshDoc.tabs.find((t: any) => t.tabProperties.tabId === tab)
-        : freshDoc.tabs[0];
-      const freshRuns: { start: number; text: string }[] = [];
-      collectTextRuns(freshTab.documentTab.body.content, freshRuns);
-      let freshText = "";
-      const freshMap: number[] = [];
-      for (const r of freshRuns) { for (let c = 0; c < r.text.length; c++) freshMap.push(r.start + c); freshText += r.text; }
+      linkFallbacks.push(m);
+    }
+  }
+
+  if (linkFallbacks.length > 0) {
+    // Re-fetch the document once for all fallbacks (positions may have shifted due to
+    // successful rich link insertions above, so we must search by text pattern).
+    const freshDoc = Docs.Documents!.get(id, { includeTabsContent: true } as any) as any;
+    const freshTab = tab
+      ? freshDoc.tabs.find((t: any) => t.tabProperties.tabId === tab)
+      : freshDoc.tabs[0];
+    const freshRuns: { start: number; text: string }[] = [];
+    collectTextRuns(freshTab.documentTab.body.content, freshRuns);
+    let freshText = "";
+    const freshMap: number[] = [];
+    for (const r of freshRuns) {
+      for (let c = 0; c < r.text.length; c++) freshMap.push(r.start + c);
+      freshText += r.text;
+    }
+
+    // Build all fallback requests from a single fresh snapshot, then send in one batch.
+    // Process in descending index order (linkFallbacks is already in that order) so
+    // earlier deletions do not shift indices for later ones.
+    const fallbackRequests: any[] = [];
+    for (const m of linkFallbacks) {
       const escaped = m.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const re = new RegExp(`\\{\\{\\s*LINK:${escaped}\\s*\\}\\}`);
       const fm = re.exec(freshText);
       if (fm) {
         const s = freshMap[fm.index], e = freshMap[fm.index + fm[0].length - 1] + 1;
-        Docs.Documents!.batchUpdate({ requests: [
+        fallbackRequests.push(
           { deleteContentRange: { range: { startIndex: s, endIndex: e, tabId } as any } },
           { insertText: { text: m.value, location: { index: s, tabId } as any } },
           { updateTextStyle: { textStyle: { link: { url: m.value } }, range: { startIndex: s, endIndex: s + m.value.length, tabId } as any, fields: "link" } },
-        ] }, id);
+        );
       }
+    }
+    if (fallbackRequests.length > 0) {
+      Docs.Documents!.batchUpdate({ requests: fallbackRequests }, id);
     }
   }
 
   if (requests.length > 0) {
-    Docs.Documents!.batchUpdate({ requests }, id);
+    // insertPerson is limited to 10 per request. Split requests into chunks of at most
+    // 10 insertPerson operations (each paired with a deleteContentRange) while keeping
+    // date/other operations together. Since matches were processed in descending index
+    // order, chunking preserves correct positions without re-fetching.
+    const PERSON_CHUNK_SIZE = 10;
+    const chunks: any[][] = [];
+    let chunk: any[] = [];
+    let personCount = 0;
+    for (const req of requests) {
+      if (req.insertPerson) {
+        if (personCount >= PERSON_CHUNK_SIZE) {
+          chunks.push(chunk);
+          chunk = [];
+          personCount = 0;
+        }
+        personCount++;
+      }
+      chunk.push(req);
+    }
+    if (chunk.length > 0) chunks.push(chunk);
+    for (const c of chunks) {
+      Docs.Documents!.batchUpdate({ requests: c }, id);
+    }
   }
 
   // Handle image placeholders via DocumentApp (supports private Drive files)
