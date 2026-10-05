@@ -27,7 +27,10 @@ Actions:
   docs [max=<N>]                List all documents (default: 20)
   doc id=<ID or URL>            Get document content
   doc create name="TITLE"       Create new document (stdin for body)
+    Options: format=markdown  Convert Markdown with styling
   doc append id=<ID or URL>     Append text from stdin
+    Options: format=markdown  Convert Markdown with styling
+             tab=<TAB_ID>     Target a specific tab
   doc overwrite id=<ID or URL>  Overwrite with text from stdin
     Options: format=markdown  Convert Markdown with styling
              tab=<TAB_ID>     Target a specific tab
