@@ -1110,6 +1110,15 @@ switch ($action) {
         break
     }
 
+    # --- Sheet formulas (GET) ---
+    { $_ -eq "sheet" -and $subaction -eq "formulas" } {
+        $q = @{ action = "sheet:formulas"; id = Get-Val "id"; name = Get-Val "name" }
+        $range = Get-Val "range"
+        if ($range) { $q["range"] = $range }
+        Format-Output (Invoke-Api -Method GET -Query $q)
+        break
+    }
+
     # --- Sheet note set/clear (POST) ---
     { $_ -eq "sheet" -and $subaction -eq "note" } {
         $sub2 = if ($remaining.Count -gt 0 -and $remaining[0] -notmatch '=') { $remaining[0] } else { "" }

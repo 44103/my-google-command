@@ -155,6 +155,24 @@ function createSpreadsheet(name: string): { id: string; name: string; url: strin
   return { id: ss.getId(), name: ss.getName(), url: ss.getUrl() };
 }
 
+function getFormulas(id: string, sheetName: string, range: string, gid?: number): { spreadsheetName: string; sheet: string; range: string; formulas: { cell: string; formula: string }[] } {
+  const { ss, tempId } = openAsSpreadsheet(id);
+  try {
+    const sheet = findSheet(ss, sheetName, gid);
+    const r = sheet.getRange(range);
+    const formulas = r.getFormulas();
+    const result: { cell: string; formula: string }[] = [];
+    for (let row = 0; row < formulas.length; row++) {
+      for (let col = 0; col < formulas[row].length; col++) {
+        if (formulas[row][col]) {
+          result.push({ cell: r.getCell(row + 1, col + 1).getA1Notation(), formula: formulas[row][col] });
+        }
+      }
+    }
+    return { spreadsheetName: ss.getName(), sheet: sheet.getName(), range: r.getA1Notation(), formulas: result };
+  } finally { cleanupTemp(tempId); }
+}
+
 function getNotes(id: string, sheetName: string, range: string): { sheet: string; range: string; notes: { cell: string; note: string }[] } {
   const ss = SpreadsheetApp.openById(id);
   const sheet = ss.getSheetByName(sheetName);

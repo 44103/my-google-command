@@ -795,6 +795,7 @@ sheet_delete=""
 sheet_rename=""
 sheet_lastrow=""
 sheet_notes=""
+sheet_formulas=""
 sheet_note_set=""
 sheet_note_clear=""
 sheet_color=""
@@ -807,6 +808,7 @@ if [[ "$action" == "sheet" && $# -gt 0 ]]; then
     rename)     sheet_rename="1"; shift ;;
     lastrow)    sheet_lastrow="1"; shift ;;
     notes)      sheet_notes="1"; shift ;;
+    formulas)   sheet_formulas="1"; shift ;;
     color)      sheet_color="1"; shift ;;
     note)
       shift
@@ -1746,6 +1748,21 @@ elif [[ -n "$sheet_notes" ]]; then
   _q=$(jq -n --arg action "sheet:notes" --arg id "$sn_id" --arg name "$sn_name" \
     '{action: $action, id: $id, name: $name}')
   [[ -n "$sn_range" ]] && _q=$(echo "$_q" | jq --arg range "$sn_range" '. + {range: $range}')
+  response=$(gas_get "$_q")
+elif [[ -n "$sheet_formulas" ]]; then
+  sf_id=""
+  sf_name=""
+  sf_range=""
+  for arg in "$@"; do
+    case "$arg" in
+      id=*)    sf_id="${arg#id=}" ;;
+      name=*)  sf_name="${arg#name=}" ;;
+      range=*) sf_range="${arg#range=}" ;;
+    esac
+  done
+  _q=$(jq -n --arg action "sheet:formulas" --arg id "$sf_id" --arg name "$sf_name" \
+    '{action: $action, id: $id, name: $name}')
+  [[ -n "$sf_range" ]] && _q=$(echo "$_q" | jq --arg range "$sf_range" '. + {range: $range}')
   response=$(gas_get "$_q")
 elif [[ -n "$sheet_note_set" ]]; then
   sn_id=""

@@ -162,6 +162,9 @@ function doGet(
       case "sheet:notes":
         result = getNotes(resolveId(e.parameter), e.parameter.name, e.parameter.range || "A1:Z1000");
         break;
+      case "sheet:formulas":
+        result = getFormulas(resolveId(e.parameter), e.parameter.name, e.parameter.range || "A1:Z1000", resolveGid(e.parameter));
+        break;
       case "gas:info":
         result = getGasInfo(e.parameter.script);
         break;
