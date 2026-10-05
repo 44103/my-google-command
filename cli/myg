@@ -1752,12 +1752,10 @@ elif [[ -n "$sheet_notes" ]]; then
       range=*) sn_range="${arg#range=}" ;;
     esac
   done
-  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
-  curl_args+=(--data-urlencode "action=sheet:notes")
-  curl_args+=(--data-urlencode "id=${sn_id}")
-  curl_args+=(--data-urlencode "name=${sn_name}")
-  [[ -n "$sn_range" ]] && curl_args+=(--data-urlencode "range=${sn_range}")
-  response=$(curl "${curl_args[@]}" "$BASE")
+  _q=$(jq -n --arg action "sheet:notes" --arg id "$sn_id" --arg name "$sn_name" \
+    '{action: $action, id: $id, name: $name}')
+  [[ -n "$sn_range" ]] && _q=$(echo "$_q" | jq --arg range "$sn_range" '. + {range: $range}')
+  response=$(gas_get "$_q")
 elif [[ -n "$sheet_note_set" ]]; then
   sn_id=""
   sn_name=""
