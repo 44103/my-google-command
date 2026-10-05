@@ -1739,12 +1739,8 @@ elif [[ -n "$sheet_lastrow" ]]; then
       name=*) sl_name="${arg#name=}" ;;
     esac
   done
-  sl_id=$(resolve_id "$sl_id")
-  curl_args=(-s -L -H "Authorization: Bearer ${ACCESS_TOKEN}" -G)
-  curl_args+=(--data-urlencode "action=sheet:lastrow")
-  curl_args+=(--data-urlencode "id=${sl_id}")
-  curl_args+=(--data-urlencode "name=${sl_name}")
-  response=$(curl "${curl_args[@]}" "$BASE")
+  response=$(gas_get "$(jq -n --arg action "sheet:lastrow" --arg id "$sl_id" --arg name "$sl_name" \
+    '{action: $action, id: $id, name: $name}')")
 elif [[ -n "$sheet_notes" ]]; then
   sn_id=""
   sn_name=""
