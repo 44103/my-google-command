@@ -573,21 +573,12 @@ if [[ "$action" == "acl" ]]; then
       echo "Usage: myg acl file id=<FILE_ID> [deny|readonly|full]" >&2; exit 1
     fi
 
-    # Load token for file ACL operations
-    if [[ -f "$TOKEN_FILE" ]]; then
-      _tk=$(cat "$TOKEN_FILE")
-    else
-      echo "No credentials. Run: myg auth" >&2; exit 1
-    fi
-
     acl_file_set_props() {
       local value="$1"
       local json_body
       json_body=$(jq -n --arg action "file:props:set" --arg id "$acl_file_id" --arg value "$value" \
         '{action: $action, id: $id, value: $value}')
-      curl -s -L -H "Authorization: Bearer ${_tk}" \
-        -H "Content-Type: application/json" \
-        -d "$json_body" "$BASE"
+      gas_post "$json_body"
     }
 
     acl_file_confirm() {
@@ -653,8 +644,8 @@ File: ${file_url}" "myg acl file id=${acl_file_id}" "$acl_msg"
     }
 
     # Get file props (includes aclMessage) - shared across all verbs
-    _props=$(curl -s -L -H "Authorization: Bearer ${_tk}" \
-      -G --data-urlencode "action=file:props" --data-urlencode "id=${acl_file_id}" "$BASE")
+    _props=$(gas_get "$(jq -n --arg action "file:props" --arg id "$acl_file_id" \
+      '{action: $action, id: $id}')")
     _err=$(echo "$_props" | jq -r 'if type == "object" then (.error // empty) else empty end' 2>/dev/null)
     if [[ -n "$_err" ]]; then
       echo "Error: $_err" >&2; exit 1
