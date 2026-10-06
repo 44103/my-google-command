@@ -189,6 +189,10 @@ myg sheet notes id=<ID> "name=<SHEET_NAME>" range=A1:C10            # 範囲指�
 echo "メモ内容" | myg sheet note set id=<ID> "name=<SHEET_NAME>" cell=A1  # メモ設定
 myg sheet note clear id=<ID> "name=<SHEET_NAME>" cell=A1            # メモ削除
 
+# 数式
+myg sheet formulas id=<ID> "name=<SHEET_NAME>"                      # 数式一覧 (デフォルト A1:Z1000)
+myg sheet formulas id=<ID> "name=<SHEET_NAME>" range=A1:C10         # 範囲指定
+
 # 背景色
 myg sheet color id=<ID> "name=<SHEET_NAME>" cell=A1 color=#ff0000   # セルの背景色を設定
 myg sheet color id=<ID> "name=<SHEET_NAME>" range=A1:C3 color=#ff0000  # 範囲指定で背景色を設定
