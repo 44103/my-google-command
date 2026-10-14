@@ -243,7 +243,7 @@ function replacePlaceholders(id: string, tab?: string): void {
   const imageMatches = matches.filter(x => x.type === "image");
   if (imageMatches.length > 0) {
     const doc = DocumentApp.openById(id);
-    const body = doc.getBody();
+    const body = tab ? getTabBody(doc, tab) : doc.getBody();
     for (const im of imageMatches) {
       let blob: GoogleAppsScript.Base.Blob;
       if (im.value.startsWith("http")) {
