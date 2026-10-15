@@ -6,8 +6,6 @@ Actions:
   auth                          Authenticate via browser (auto-callback)
   feedback                      Open the feedback form in the browser
   whoami                        Show current authenticated user
-  token                         Show auth URL (for non-interactive use)
-  token <TOKEN>                 Save token directly
   spreadsheets [max=<N>]        List all spreadsheets (default: 20)
   spreadsheet id=<ID or URL>    List sheets in a spreadsheet (name+gid)
   spreadsheet create name="TITLE"  Create new spreadsheet

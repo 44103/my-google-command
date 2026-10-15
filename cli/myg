@@ -431,10 +431,9 @@ if [[ "$action" == "auth" ]]; then
 
   if [[ ! -t 0 ]]; then
     echo "" >&2
-    echo "Non-interactive shell detected. Use 'myg token' instead:" >&2
-    echo "  1. Open: $auth_url" >&2
-    echo "  2. Copy the token, then run:" >&2
-    echo "     myg token <PASTE_TOKEN_HERE>" >&2
+    echo "Non-interactive shell detected. Start the daemon and run 'myg auth' in an interactive terminal:" >&2
+    echo "  myg daemon start" >&2
+    echo "  myg auth" >&2
     exit 1
   fi
 
@@ -442,8 +441,9 @@ if [[ "$action" == "auth" ]]; then
   read -r token
   if [[ -z "$token" ]]; then
     echo "" >&2
-    echo "Empty token. Use 'myg token' for non-interactive environments:" >&2
-    echo "  myg token <PASTE_TOKEN_HERE>" >&2
+    echo "Empty token. Start the daemon and run 'myg auth' in an interactive terminal:" >&2
+    echo "  myg daemon start" >&2
+    echo "  myg auth" >&2
     exit 1
   fi
   echo "$token" > "$TOKEN_FILE"
